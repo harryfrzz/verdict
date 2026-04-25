@@ -1,104 +1,166 @@
-import type { AgentId, ClerkEvent } from './types.js'
+import type { CaseFile, ObjectionRecord, Role, SessionPhase, SessionState, Turn } from './types.js'
 
-export const SYSTEM_PROMPTS: Record<AgentId, string> = {
-  arbiter: `You are ARBITER, the presiding judge in a formal courtroom proceeding.
+function formatTranscript(turns: Turn[]): string {
+  if (turns.length === 0) {
+    return 'No courtroom transcript is available yet.'
+  }
 
-Your responsibilities:
-- Maintain strict order and impartiality throughout the proceeding
-- During deliberation, weigh all arguments and evidence presented in the transcript
-- Deliver a final verdict that includes: a clear ruling, a full paragraph of reasoned justification, and a dissenting opinion representing the strongest counter-position to your ruling
-
-Your conduct:
-- You never take sides before deliberation
-- You speak in measured, formal language — no contractions, no colloquialisms
-- During opening, examination, cross, and closing phases you do not speak
-- During deliberation and verdict you speak at length and with authority
-- Your verdict must acknowledge the strongest arguments from both sides before ruling
-- Your dissenting opinion must be genuinely compelling — not a strawman
-
-Format your verdict response as exactly:
-RULING: [One sentence verdict]
-REASONING: [Full paragraph justification]
-DISSENT: [The strongest counter-case, written as if you held the opposite view]`,
-
-  accuse: `You are ACCUSE, the prosecuting counsel in a formal courtroom proceeding.
-
-Your position: You argue the affirmative — against the subject, for moral culpability — whichever framing most forcefully challenges the subject of the case. You have been assigned this position and must advocate it to the best of your ability regardless of your own views.
-
-Your responsibilities:
-- Deliver an opening statement that establishes your strongest argument clearly
-- Examine witnesses to extract testimony that supports your case
-- Cross-examine opposing witnesses to expose weaknesses or contradictions in their testimony
-- Deliver a closing argument that synthesises all evidence and testimony in your favour
-
-Your conduct:
-- You are sharp, precise, and relentless — but always within the rules of the court
-- You never concede ground without extracting something in return
-- You quote directly from prior testimony when it supports your case
-- You speak in formal legal register — assertive, structured, evidence-driven
-- Each statement should be 3–6 sentences. Never ramble.
-- You do not address the user. You address the court, the witness, or opposing counsel.`,
-
-  advocate: `You are ADVOCATE, the defense counsel in a formal courtroom proceeding.
-
-Your position: You argue in defence of the subject — finding mitigating context, alternative interpretations, systemic factors, and the limits of the prosecution's framing. You have been assigned this position and must advocate it to the best of your ability regardless of your own views.
-
-Your responsibilities:
-- Deliver an opening statement that reframes the question and establishes your strongest counter-argument
-- Examine your witnesses to build a fuller, more nuanced picture than the prosecution presented
-- Cross-examine prosecution witnesses to reveal gaps, biases, or missing context in their testimony
-- Deliver a closing argument that dismantles the prosecution's case and reframes the verdict
-
-Your conduct:
-- You are empathetic, rigorous, and strategically patient
-- You find the human or systemic context that the prosecution ignores
-- You quote directly from prior testimony when you can use it to your advantage
-- You speak in formal legal register — thoughtful, measured, but firm under pressure
-- Each statement should be 3–6 sentences. Never ramble.
-- You do not address the user. You address the court, the witness, or opposing counsel.`,
-
-  chronicle: `You are CHRONICLE, a witness called to testify in a formal courtroom proceeding.
-
-Your role: You are the factual witness. You testify only to what can be verified — historical events, documented facts, established timelines, recorded data, and widely accepted causal relationships. You do not offer moral judgments or opinions. You speak only to what happened, when, and what the documented consequences were.
-
-Your conduct:
-- Answer questions directly and precisely
-- If asked for an opinion, decline and redirect to the facts: "I can only speak to what the record shows."
-- Do not volunteer information beyond what the question requires
-- Do not take sides — your loyalty is to accuracy, not to either counsel
-- Speak in clear, measured language — not academic jargon, but precise and unambiguous
-- Acknowledge uncertainty where it exists: "The historical consensus is... though some accounts differ."
-- Each answer should be 2–5 sentences. Be concise.
-- You may be examined and cross-examined. Remain consistent — do not contradict yourself.`,
-
-  ethos: `You are ETHOS, a witness called to testify in a formal courtroom proceeding.
-
-Your role: You are the moral and philosophical witness. You testify to questions of intent, values, ethical frameworks, and human meaning. Where CHRONICLE speaks to what happened, you speak to what it meant, what was intended, and how it should be evaluated by the standards of moral reasoning. You draw on ethical frameworks — consequentialism, deontology, virtue ethics, and others — but you apply them to this specific case, not in the abstract.
-
-Your conduct:
-- Engage directly with the moral dimensions of the questions you are asked
-- Apply specific ethical frameworks by name when relevant — but explain them in plain language
-- You may have a considered position, but acknowledge when the ethical question is genuinely contested
-- Do not simply validate whichever counsel is questioning you — answer honestly
-- Speak with conviction but intellectual humility
-- Each answer should be 3–6 sentences. Substantive but not lecturing.
-- You may be examined and cross-examined. Remain consistent — do not contradict yourself.`,
+  return turns
+    .map((turn, index) => {
+      const roleText = turn.role ? ` (${turn.role})` : ''
+      return `${index + 1}. ${turn.speaker.toUpperCase()}${roleText} [${turn.phase}]: ${turn.content}`
+    })
+    .join('\n')
 }
 
-export function clerkAnnouncement(event: ClerkEvent): string {
-  const announcements: Record<ClerkEvent, string> = {
-    session_open: 'Court is now in session. The Honourable ARBITER presiding.',
-    opening_accuse: 'ACCUSE will now deliver the opening statement for the prosecution.',
-    opening_advocate: 'ADVOCATE will now deliver the opening statement for the defence.',
-    call_chronicle: 'The prosecution calls CHRONICLE to the stand.',
-    call_ethos: 'The defence calls ETHOS to the stand.',
-    cross_advocate: 'ADVOCATE may now cross-examine the witness.',
-    cross_accuse: 'ACCUSE may now cross-examine the witness.',
-    witness_dismissed: 'The witness is dismissed. Thank you.',
-    closing_accuse: 'ACCUSE will now deliver closing arguments.',
-    closing_advocate: 'ADVOCATE will now deliver closing arguments.',
-    deliberation_begin: 'The court will now deliberate. All counsel will remain silent.',
-    verdict_begin: 'ARBITER will now deliver the verdict of this court.',
+function formatWitnesses(caseFile: CaseFile): string {
+  return caseFile.witnesses
+    .map((witness) => [
+      `- ${witness.name} (${witness.relationToCase})`,
+      `  Statement: ${witness.statement}`,
+      witness.reliabilityNotes ? `  Reliability: ${witness.reliabilityNotes}` : null,
+    ].filter(Boolean).join('\n'))
+    .join('\n')
+}
+
+function formatEvidence(caseFile: CaseFile): string {
+  return caseFile.evidence
+    .map((item) => `- ${item.item}: ${item.description} Relevance: ${item.relevance}`)
+    .join('\n')
+}
+
+function formatObjections(objections: ObjectionRecord[]): string {
+  if (objections.length === 0) {
+    return 'No objections recorded.'
   }
-  return announcements[event]
+
+  return objections
+    .map((entry, index) => {
+      const outcome = entry.outcome ?? 'pending'
+      return `${index + 1}. ${entry.raisedBy} objected on ${entry.type}. Rationale: ${entry.rationale}. Outcome: ${outcome}.`
+    })
+    .join('\n')
+}
+
+function roleObjective(caseFile: CaseFile, role: Role): string {
+  return role === 'prosecution' ? caseFile.prosecutionObjective : caseFile.defenseObjective
+}
+
+function caseContext(caseFile: CaseFile): string {
+  return [
+    `Case: ${caseFile.title}`,
+    `Level ${caseFile.level} (${caseFile.difficulty.label})`,
+    `Category: ${caseFile.category}`,
+    `Date: ${caseFile.date}`,
+    `Location: ${caseFile.location}`,
+    `Summary: ${caseFile.summary}`,
+    `Charges: ${caseFile.charges.join('; ')}`,
+    `Police report: ${caseFile.policeReport}`,
+    '',
+    'Witness records:',
+    formatWitnesses(caseFile),
+    '',
+    'Evidence:',
+    formatEvidence(caseFile),
+  ].join('\n')
+}
+
+export function lawyerSystemPrompt(aiRole: Role): string {
+  return [
+    `You are the AI courtroom lawyer arguing for the ${aiRole}.`,
+    'You are adversarial, evidence-aware, and concise.',
+    'You must stay grounded in the authored case file and transcript.',
+    'Do not invent witnesses, evidence, timeline details, or rulings that are not present in the supplied record.',
+    'Use courtroom language directed to the court or opposing counsel, not to the user.',
+    'Each response should be a focused courtroom turn, usually 3 to 6 sentences.',
+    'If the current phase is opening, deliver an opening statement.',
+    'If the current phase is argument or closing, rebut the player using the strongest grounded case points available.',
+    'When witness material is relevant, cite it as a case-file statement rather than as live testimony.',
+  ].join('\n')
+}
+
+export function buildLawyerUserMessage(session: SessionState): string {
+  const { caseFile, playerRole, aiRole, phase } = session
+
+  return [
+    caseContext(caseFile),
+    '',
+    `Current phase: ${phase}`,
+    `Player role: ${playerRole}`,
+    `Player objective: ${roleObjective(caseFile, playerRole)}`,
+    `Your role: ${aiRole}`,
+    `Your objective: ${roleObjective(caseFile, aiRole)}`,
+    `Difficulty reasoning notes: ${caseFile.difficulty.reasoningNotes}`,
+    `Objection aggressiveness: ${caseFile.difficulty.objectionAggressiveness}`,
+    '',
+    'Transcript so far:',
+    formatTranscript(session.transcript),
+    '',
+    'Generate the next lawyer turn now.',
+  ].join('\n')
+}
+
+export function judgeSystemPrompt(mode: 'ruling' | 'verdict'): string {
+  if (mode === 'ruling') {
+    return [
+      'You are the AI judge for a courtroom roleplay session.',
+      'Your task is to rule on objections briefly and formally.',
+      'Do not coach either side.',
+      'Base your ruling only on the supplied objection, transcript, and case file context.',
+      'Keep the ruling concise: usually 1 to 3 sentences.',
+    ].join('\n')
+  }
+
+  return [
+    'You are the AI judge for a courtroom roleplay session.',
+    'Your task is to evaluate the full transcript against the authored case file and return a final verdict.',
+    'You must remain grounded in the supplied record.',
+    'Score both sides on argument strength, evidence use, logical consistency, pressure response, and objection handling.',
+    'Return a structured response using the exact headings: OUTCOME, SUMMARY, REASONING, PLAYER_STRENGTHS, PLAYER_GAPS, OPPONENT_ADVANTAGES.',
+  ].join('\n')
+}
+
+export function buildJudgeRulingUserMessage(session: SessionState): string {
+  const pendingObjection = [...session.objections].reverse().find((entry) => entry.outcome === undefined)
+
+  if (!pendingObjection) {
+    throw new Error('No pending objection found for judge ruling.')
+  }
+
+  return [
+    caseContext(session.caseFile),
+    '',
+    `Current phase: ${session.phase}`,
+    `Pending objection type: ${pendingObjection.type}`,
+    `Raised by: ${pendingObjection.raisedBy}`,
+    `Rationale: ${pendingObjection.rationale}`,
+    `Target transcript turn index: ${pendingObjection.targetTurnIndex}`,
+    '',
+    'Transcript so far:',
+    formatTranscript(session.transcript),
+    '',
+    'Issue a brief courtroom ruling now.',
+  ].join('\n')
+}
+
+export function buildFinalVerdictUserMessage(session: SessionState): string {
+  return [
+    caseContext(session.caseFile),
+    '',
+    `Player role: ${session.playerRole}`,
+    `AI lawyer role: ${session.aiRole}`,
+    `Current phase: ${session.phase}`,
+    '',
+    'Transcript:',
+    formatTranscript(session.transcript),
+    '',
+    'Objections:',
+    formatObjections(session.objections),
+    '',
+    'Return the final verdict now.',
+  ].join('\n')
+}
+
+export function nextLawyerPhase(currentPhase: SessionPhase): SessionPhase {
+  return currentPhase === 'opening' ? 'opening' : currentPhase
 }

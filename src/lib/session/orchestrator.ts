@@ -202,3 +202,22 @@ export function recordJudgeRuling(
     session: nextSession,
   }
 }
+
+export function recordFinalVerdict(session: SessionState, content: string): SessionMutationResult {
+  const trimmed = content.trim()
+  if (trimmed.length === 0) {
+    throw new Error('Verdict content is required.')
+  }
+
+  const result = appendTurn(session, buildTurn('judge', 'verdict', trimmed))
+  const nextSession = result.session
+
+  nextSession.phase = 'verdict'
+  nextSession.awaitingPlayerInput = false
+  nextSession.nextSpeaker = 'judge'
+
+  return {
+    ...result,
+    session: nextSession,
+  }
+}
