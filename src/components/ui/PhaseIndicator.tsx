@@ -4,7 +4,7 @@ interface PhaseIndicatorProps {
   currentPhase: Phase
 }
 
-const phases: Phase[] = ['opening', 'examination', 'cross', 'closing']
+const phases: Phase[] = ['opening', 'examination', 'cross', 'closing', 'deliberation', 'verdict']
 
 function PhaseIndicator({ currentPhase }: PhaseIndicatorProps) {
   return (

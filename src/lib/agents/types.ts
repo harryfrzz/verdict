@@ -22,6 +22,17 @@ export interface Turn {
   type: 'statement' | 'clerk'
 }
 
+export interface AgentRole {
+  id: AgentId
+  name: string
+  title: string
+  imageSrc: string
+  alignment: 'left' | 'right'
+  accentClass: string
+}
+
+export type TranscriptTurn = Pick<Turn, 'agentId' | 'phase' | 'content' | 'type'>
+
 export interface CaseFile {
   question: string
   category: string

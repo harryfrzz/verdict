@@ -3,11 +3,12 @@ import type { AgentRole } from '../../lib/agents/types'
 
 interface SceneProps {
   roles: AgentRole[]
-  activeAgentId: AgentRole['id']
-  activeLine: string
+  activeAgentId: AgentRole['id'] | null
+  activeLine?: string
+  benchLine?: string
 }
 
-function Scene({ roles, activeAgentId, activeLine }: SceneProps) {
+function Scene({ roles, activeAgentId, activeLine, benchLine }: SceneProps) {
   return (
     <section className="relative flex min-h-[62vh] items-end px-6 pb-8 pt-20">
       <div className="absolute inset-x-0 top-0 h-36 bg-gradient-to-b from-black/55 to-transparent" />
@@ -20,7 +21,7 @@ function Scene({ roles, activeAgentId, activeLine }: SceneProps) {
           </p>
           <p className="mt-1 text-lg font-semibold text-stone-100">The Court Is In Session</p>
           <p className="mt-2 text-sm leading-6 text-stone-300">
-            Live role-play layout built from the courtroom architecture in the repo docs.
+            {benchLine ?? 'Live role-play layout built from the courtroom architecture in the repo docs.'}
           </p>
         </div>
       </div>

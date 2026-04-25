@@ -1,56 +1,87 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
+import Scene from './components/courtroom/Scene'
 import CharacterSetup, { type SetupCharacter } from './components/roleplay/CharacterSetup'
-import CourtTurn from './components/roleplay/CourtTurn'
-import sessionData from './data/courtSession.json'
+import TranscriptFeed from './components/transcript/TranscriptFeed'
+import PhaseIndicator from './components/ui/PhaseIndicator'
+import TensionMeter from './components/ui/TensionMeter'
+import { readSSEStream } from './lib/llm/stream'
+import { clerkAnnouncement } from './lib/agents/prompts'
+import type {
+  AgentId,
+  AgentRole,
+  CaseFile,
+  ClerkEvent as ClerkEventType,
+  Phase,
+  Plea,
+  TranscriptTurn,
+  Turn,
+} from './lib/agents/types'
 
-type AgentId = 'accuse' | 'advocate' | 'chronicle' | 'ethos'
+type FlowStep =
+  | { kind: 'clerk'; event: ClerkEventType; phase: Phase }
+  | { kind: 'agent'; agentId: AgentId; phase: Phase }
 
-interface RoleConfig {
-  name: string
-  title: string
-  imageSrc: string
-  side: 'left' | 'right'
-  accentClass: string
-}
+const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8787'
 
-interface SessionTurn {
-  id: string
-  agentId: AgentId
-  phase: string
-  text: string
-  delayMs: number
-}
-
-const roleMap: Record<AgentId, RoleConfig> = {
-  accuse: {
+const roles: AgentRole[] = [
+  {
+    id: 'accuse',
     name: 'ACCUSE',
     title: 'Prosecution',
     imageSrc: '/lawyer_1.png',
-    side: 'right',
+    alignment: 'right',
     accentClass: 'bg-red-400',
   },
-  advocate: {
+  {
+    id: 'advocate',
     name: 'ADVOCATE',
     title: 'Defense',
     imageSrc: '/lawyer_2.png',
-    side: 'left',
+    alignment: 'left',
     accentClass: 'bg-violet-400',
   },
-  chronicle: {
+  {
+    id: 'chronicle',
     name: 'CHRONICLE',
     title: 'Witness I',
     imageSrc: '/witness_1_chronicle.png',
-    side: 'right',
+    alignment: 'right',
     accentClass: 'bg-sky-400',
   },
-  ethos: {
+  {
+    id: 'ethos',
     name: 'ETHOS',
     title: 'Witness II',
     imageSrc: '/witness_2_ethos.png',
-    side: 'left',
+    alignment: 'left',
     accentClass: 'bg-emerald-400',
   },
-}
+]
+
+const flow: FlowStep[] = [
+  { kind: 'clerk', event: 'session_open', phase: 'opening' },
+  { kind: 'clerk', event: 'opening_accuse', phase: 'opening' },
+  { kind: 'agent', agentId: 'accuse', phase: 'opening' },
+  { kind: 'clerk', event: 'opening_advocate', phase: 'opening' },
+  { kind: 'agent', agentId: 'advocate', phase: 'opening' },
+  { kind: 'clerk', event: 'call_chronicle', phase: 'examination' },
+  { kind: 'agent', agentId: 'chronicle', phase: 'examination' },
+  { kind: 'clerk', event: 'cross_advocate', phase: 'cross' },
+  { kind: 'agent', agentId: 'advocate', phase: 'cross' },
+  { kind: 'clerk', event: 'witness_dismissed', phase: 'cross' },
+  { kind: 'clerk', event: 'call_ethos', phase: 'examination' },
+  { kind: 'agent', agentId: 'ethos', phase: 'examination' },
+  { kind: 'clerk', event: 'cross_accuse', phase: 'cross' },
+  { kind: 'agent', agentId: 'accuse', phase: 'cross' },
+  { kind: 'clerk', event: 'witness_dismissed', phase: 'cross' },
+  { kind: 'clerk', event: 'closing_accuse', phase: 'closing' },
+  { kind: 'agent', agentId: 'accuse', phase: 'closing' },
+  { kind: 'clerk', event: 'closing_advocate', phase: 'closing' },
+  { kind: 'agent', agentId: 'advocate', phase: 'closing' },
+  { kind: 'clerk', event: 'deliberation_begin', phase: 'deliberation' },
+  { kind: 'clerk', event: 'verdict_begin', phase: 'verdict' },
+  { kind: 'agent', agentId: 'arbiter', phase: 'verdict' },
+]
 
 const setupCharacters: SetupCharacter[] = [
   {
@@ -103,61 +134,268 @@ const defaultModelAssignments = Object.fromEntries(
   setupCharacters.map((character) => [character.id, modelOptions[0]]),
 )
 
+function buildTurn(
+  partial: Omit<Turn, 'timestamp' | 'turnNumber'>,
+  turnNumber: number
+): Turn {
+  return {
+    ...partial,
+    turnNumber,
+    timestamp: Date.now(),
+  }
+}
+
+function getBenchLine(activeAgentId: AgentId | null, activeLine: string, status: string) {
+  if (activeAgentId === 'arbiter') {
+    return 'ARBITER is delivering the ruling.'
+  }
+  if (activeAgentId) {
+    return activeLine || 'Witness and counsel statements are streaming into the court record.'
+  }
+  if (status === 'complete') {
+    return 'Proceedings complete. The court record is closed.'
+  }
+  return 'Submit a case question and open the court to begin the proceeding.'
+}
+
 function App() {
-  const turns = sessionData.turns as SessionTurn[]
-  const [courtOpen, setCourtOpen] = useState(false)
-  const [activeIndex, setActiveIndex] = useState<number>(-1)
-  const [casePrompt, setCasePrompt] = useState('')
+  const runIdRef = useRef(0)
+  const [question, setQuestion] = useState(
+    'Was the launch of a high-risk AI system justified despite known public-risk concerns?'
+  )
+  const [plea, setPlea] = useState<Plea>('not_guilty')
+  const [status, setStatus] = useState<'idle' | 'starting' | 'running' | 'complete' | 'error'>(
+    'idle'
+  )
+  const [error, setError] = useState<string | null>(null)
+  const [sessionId, setSessionId] = useState<string | null>(null)
+  const [category, setCategory] = useState('')
+  const [caseFile, setCaseFile] = useState<CaseFile | null>(null)
+  const [turns, setTurns] = useState<TranscriptTurn[]>([])
+  const [activeAgentId, setActiveAgentId] = useState<AgentId | null>(null)
+  const [activeLine, setActiveLine] = useState('')
   const [modelAssignments, setModelAssignments] = useState<Record<string, string>>(
     defaultModelAssignments,
   )
 
-  useEffect(() => {
-    if (!courtOpen) {
-      setActiveIndex(-1)
-      return
+  const currentPhase = caseFile?.phase ?? 'opening'
+  const statementCount = turns.filter((turn) => turn.type === 'statement').length
+  const tension = useMemo(() => {
+    const phaseBoost: Record<Phase, number> = {
+      plea: 0,
+      opening: 20,
+      examination: 48,
+      cross: 72,
+      closing: 88,
+      deliberation: 94,
+      verdict: 100,
     }
 
-    let cancelled = false
-    let timeoutId: number | undefined
+    const progressBoost = Math.min(18, Math.round((statementCount / 7) * 18))
+    return Math.min(100, phaseBoost[currentPhase] + progressBoost)
+  }, [currentPhase, statementCount])
 
-    const playTurn = (index: number) => {
-      if (cancelled) {
+  async function startCourt() {
+    const nextRunId = runIdRef.current + 1
+    runIdRef.current = nextRunId
+
+    setStatus('starting')
+    setError(null)
+    setSessionId(null)
+    setCategory('')
+    setCaseFile(null)
+    setTurns([])
+    setActiveAgentId(null)
+    setActiveLine('')
+
+    try {
+      const sessionResponse = await fetch(`${API_BASE_URL}/api/session`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question, plea, modelAssignments }),
+      })
+
+      const sessionPayload = (await sessionResponse.json()) as
+        | { error: string }
+        | { sessionId: string; category: string; caseFile: CaseFile }
+
+      if (!sessionResponse.ok) {
+        throw new Error(
+          'error' in sessionPayload ? sessionPayload.error : 'Failed to create session.'
+        )
+      }
+
+      if ('error' in sessionPayload) {
+        throw new Error(sessionPayload.error)
+      }
+
+      if (runIdRef.current !== nextRunId) {
         return
       }
 
-      setActiveIndex(index)
+      setStatus('running')
+      setSessionId(sessionPayload.sessionId)
+      setCategory(sessionPayload.category)
 
-      if (index >= turns.length - 1) {
+      let workingCaseFile = sessionPayload.caseFile
+      setCaseFile(workingCaseFile)
+
+      const commitCaseFile = (nextCaseFile: CaseFile) => {
+        workingCaseFile = nextCaseFile
+        setCaseFile(nextCaseFile)
+        setTurns(nextCaseFile.transcript)
+      }
+
+      const pushTurn = (turn: Turn) => {
+        const nextCaseFile = {
+          ...workingCaseFile,
+          transcript: [...workingCaseFile.transcript, turn],
+        }
+        commitCaseFile(nextCaseFile)
+      }
+
+      const updateLatestTurn = (content: string) => {
+        const transcript = [...workingCaseFile.transcript]
+        const lastTurn = transcript.at(-1)
+        if (!lastTurn) {
+          return
+        }
+
+        transcript[transcript.length - 1] = {
+          ...lastTurn,
+          content,
+        }
+
+        commitCaseFile({ ...workingCaseFile, transcript })
+      }
+
+      for (const step of flow) {
+        if (runIdRef.current !== nextRunId) {
+          return
+        }
+
+        commitCaseFile({ ...workingCaseFile, phase: step.phase })
+
+        if (step.kind === 'clerk') {
+          const line = clerkAnnouncement(step.event)
+          setActiveAgentId(null)
+          setActiveLine(line)
+          pushTurn(
+            buildTurn(
+              {
+                agentId: 'clerk',
+                phase: step.phase,
+                content: line,
+                type: 'clerk',
+              },
+              workingCaseFile.transcript.length + 1
+            ),
+          )
+          await new Promise((resolve) => window.setTimeout(resolve, 450))
+          continue
+        }
+
+        setActiveAgentId(step.agentId)
+        setActiveLine('')
+
+        if (step.agentId === 'arbiter') {
+          const verdictResponse = await fetch(`${API_BASE_URL}/api/agent`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              sessionId: sessionPayload.sessionId,
+              agentId: step.agentId,
+              caseFile: workingCaseFile,
+              modelAssignments,
+            }),
+          })
+
+          const verdictPayload = (await verdictResponse.json()) as {
+            content?: string
+            error?: string
+          }
+
+          if (!verdictResponse.ok || verdictPayload.error || !verdictPayload.content) {
+            throw new Error(verdictPayload.error || 'ARBITER call failed.')
+          }
+
+          const verdictText = verdictPayload.content.trim()
+          setActiveLine(verdictText)
+          pushTurn(
+            buildTurn(
+              {
+                agentId: 'arbiter',
+                phase: step.phase,
+                content: verdictText,
+                type: 'statement',
+              },
+              workingCaseFile.transcript.length + 1
+            ),
+          )
+          continue
+        }
+
+        pushTurn(
+          buildTurn(
+            {
+              agentId: step.agentId,
+              phase: step.phase,
+              content: '',
+              type: 'statement',
+            },
+            workingCaseFile.transcript.length + 1
+          ),
+        )
+
+        const response = await fetch(`${API_BASE_URL}/api/agent`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sessionId: sessionPayload.sessionId,
+            agentId: step.agentId,
+            caseFile: workingCaseFile,
+            modelAssignments,
+          }),
+        })
+
+        if (!response.ok) {
+          const payload = (await response.json()) as { error?: string }
+          throw new Error(payload.error || `Failed to stream ${step.agentId}.`)
+        }
+
+        let fullContent = ''
+        for await (const event of readSSEStream(response)) {
+          if (runIdRef.current !== nextRunId) {
+            return
+          }
+
+          if (event.error) {
+            throw new Error(event.error)
+          }
+
+          fullContent = event.fullContent ?? `${fullContent}${event.token}`
+          setActiveLine(fullContent)
+          updateLatestTurn(fullContent)
+        }
+      }
+
+      if (runIdRef.current === nextRunId) {
+        setStatus('complete')
+        setActiveAgentId(null)
+      }
+    } catch (err) {
+      if (runIdRef.current !== nextRunId) {
         return
       }
 
-      timeoutId = window.setTimeout(() => {
-        playTurn(index + 1)
-      }, turns[index].delayMs)
+      setStatus('error')
+      setActiveAgentId(null)
+      setError(err instanceof Error ? err.message : 'Court session failed.')
     }
+  }
 
-    timeoutId = window.setTimeout(() => {
-      playTurn(0)
-    }, 700)
+  const showSetup = status === 'idle' && turns.length === 0
 
-    return () => {
-      cancelled = true
-      if (timeoutId !== undefined) {
-        window.clearTimeout(timeoutId)
-      }
-    }
-  }, [courtOpen, turns])
-
-  const visibleTurns = useMemo(() => {
-    if (activeIndex < 0) {
-      return []
-    }
-
-    return turns.slice(0, activeIndex + 1)
-  }, [activeIndex, turns])
-
-  const activeTurn = activeIndex >= 0 ? turns[activeIndex] : null
   return (
     <div className="relative min-h-screen overflow-hidden">
       <img
@@ -165,155 +403,122 @@ function App() {
         src="/bg_courtroom.png"
         alt=""
       />
-      <div className="absolute inset-0 z-[1] bg-[linear-gradient(180deg,rgba(4,4,8,0.16)_0%,rgba(4,4,8,0.34)_52%,rgba(4,4,8,0.72)_100%)]" />
-      {courtOpen ? (
-        <>
-          <div className="group absolute left-[50.1%] top-[44.5%] z-[2] -translate-x-1/2 -translate-y-1/2">
-            <img
-              className="relative h-[min(9vh,28rem)] w-auto object-contain drop-shadow-[0_22px_28px_rgba(0,0,0,0.46)] transition duration-300 group-hover:scale-105"
-              src="/judge.png"
-              alt="Judge"
-            />
-          </div>
-          <div className="group absolute left-1/2 top-[65%] z-[3] -translate-x-1/2 -translate-y-1/2">
-            <img
-              className="relative h-[min(20vh,26rem)] w-auto object-contain drop-shadow-[0_24px_30px_rgba(0,0,0,0.48)] transition duration-300 group-hover:scale-105"
-              src="/accused_person.png"
-              alt="Accused person"
-            />
-          </div>
-        </>
-      ) : null}
-      <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-[1440px] flex-col px-4 pb-24 pt-2 sm:px-6">
-        {courtOpen ? (
-          <div className="absolute right-4 top-4 z-30 sm:right-6">
-            <button
-              type="button"
-              onClick={() => {
-                setCourtOpen(false)
-                window.setTimeout(() => setCourtOpen(true), 30)
-              }}
-              className="rounded-md border border-amber-200/28 bg-black/64 px-4 py-2 text-sm font-medium text-amber-50 backdrop-blur-sm transition hover:bg-black/76"
-            >
-              Replay Court
-            </button>
-          </div>
-        ) : null}
+      <div className="absolute inset-0 z-[1] bg-[linear-gradient(180deg,rgba(5,5,8,0.2)_0%,rgba(5,5,8,0.5)_55%,rgba(5,5,8,0.82)_100%)]" />
 
-        <main className="flex flex-1 items-center">
-          {activeTurn ? (
-            <CourtTurn
-              name={roleMap[activeTurn.agentId].name}
-              title={roleMap[activeTurn.agentId].title}
-              imageSrc={roleMap[activeTurn.agentId].imageSrc}
-              side={roleMap[activeTurn.agentId].side}
-              text={activeTurn.text}
-              accentClass={roleMap[activeTurn.agentId].accentClass}
-            />
-          ) : !courtOpen ? (
-            <CharacterSetup
-              characters={setupCharacters}
-              modelAssignments={modelAssignments}
-              modelOptions={modelOptions}
-              onModelChange={(characterId, model) => {
-                setModelAssignments((currentAssignments) => ({
-                  ...currentAssignments,
-                  [characterId]: model,
-                }))
-              }}
-            />
-          ) : null}
-        </main>
-      </div>
+      <div className="relative z-10 mx-auto min-h-screen w-full max-w-[1520px] px-4 py-5 sm:px-6">
+        <div className="grid gap-4 xl:grid-cols-[320px_minmax(0,1fr)_360px]">
+          <aside className="space-y-4">
+            <section className="rounded-md border border-white/10 bg-black/50 p-4 backdrop-blur-md">
+              <p className="text-[11px] uppercase tracking-[0.18em] text-stone-400">Case Intake</p>
+              <h1 className="mt-1 text-2xl font-semibold text-stone-100">Verdict</h1>
+              <p className="mt-2 text-sm leading-6 text-stone-300">
+                Open a live courtroom session with counsel, witnesses, and a final ruling.
+              </p>
 
-      {courtOpen ? (
-        <div className="fixed inset-x-0 bottom-0 z-20 animate-verdict-slide-up border-t border-stone-700 bg-stone-950">
-          <div className="mx-auto w-full max-w-[1440px] px-4 py-3 sm:px-6">
-            <details className="group">
-              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 rounded-md border border-stone-700 bg-stone-900 px-4 py-3 transition hover:border-stone-500">
-                <div className="min-w-0">
-                  <p className="text-[11px] uppercase tracking-[0.18em] text-stone-400">
-                    Transcript
-                  </p>
-                  <p className="truncate text-sm font-semibold text-stone-100">
-                    Simulated Conversation
-                  </p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="hidden h-1.5 w-24 overflow-hidden rounded-full bg-stone-800 sm:block">
-                    <span
-                      className="block h-full rounded-full bg-amber-200 transition-all duration-300"
-                      style={{ width: `${(visibleTurns.length / turns.length) * 100}%` }}
-                    />
-                  </span>
-                  <span className="rounded-full border border-stone-700 bg-stone-950 px-3 py-1 text-[11px] uppercase tracking-[0.16em] text-stone-300">
-                    {visibleTurns.length}/{turns.length}
-                  </span>
-                </div>
-              </summary>
-
-              <div className="mt-3 max-h-[42vh] space-y-3 overflow-y-auto pb-2">
-                {visibleTurns.length > 0 ? (
-                  visibleTurns.map((turn, index) => {
-                    const role = roleMap[turn.agentId]
-
-                    return (
-                      <article
-                        key={turn.id}
-                        className="animate-verdict-float-in rounded-md border border-stone-700 bg-stone-900 px-4 py-3 shadow-[0_12px_28px_rgba(0,0,0,0.24)]"
-                        style={{ animationDelay: `${index * 35}ms` }}
-                      >
-                        <div className="flex items-center gap-3">
-                          <span className={`h-2.5 w-2.5 rounded-full ${role.accentClass}`} />
-                          <p className="text-sm font-semibold text-stone-100">{role.name}</p>
-                          <p className="text-[11px] uppercase tracking-[0.16em] text-stone-400">
-                            {turn.phase}
-                          </p>
-                        </div>
-                        <p className="mt-2 text-sm leading-6 text-stone-300">{turn.text}</p>
-                      </article>
-                    )
-                  })
-                ) : (
-                  <div className="rounded-md border border-dashed border-stone-700 bg-stone-900 px-4 py-6 text-sm leading-6 text-stone-400">
-                    The transcript will populate after the court opens.
-                  </div>
-                )}
-              </div>
-            </details>
-          </div>
-        </div>
-      ) : (
-        <div className="fixed inset-x-0 bottom-6 z-20 flex justify-center px-4">
-          <form
-            className="w-full max-w-3xl animate-verdict-float-in rounded-lg border border-stone-700 bg-stone-950/98 p-2 shadow-[0_18px_54px_rgba(0,0,0,0.48)]"
-            onSubmit={(event) => {
-              event.preventDefault()
-              setCourtOpen(false)
-              window.setTimeout(() => setCourtOpen(true), 30)
-            }}
-          >
-            <div className="flex items-center gap-2 rounded-md bg-stone-900 p-1.5">
-              <label className="min-w-0 flex-1">
-                <span className="sr-only">Crime case</span>
-                <input
-                  value={casePrompt}
-                  onChange={(event) => setCasePrompt(event.target.value)}
-                  required
-                  placeholder="Type the crime case to be tried..."
-                  className="block w-full rounded-md border border-transparent bg-transparent px-3 py-2.5 text-sm text-stone-100 outline-none transition placeholder:text-stone-500 focus:border-stone-600"
-                />
+              <label className="mt-4 block text-[11px] uppercase tracking-[0.16em] text-stone-400">
+                Case Question
               </label>
+              <textarea
+                value={question}
+                onChange={(event) => setQuestion(event.target.value)}
+                rows={7}
+                className="mt-2 w-full rounded-md border border-white/10 bg-black/45 px-3 py-3 text-sm leading-6 text-stone-100 outline-none transition focus:border-amber-200/35"
+              />
+
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                {(['not_guilty', 'guilty'] as Plea[]).map((value) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setPlea(value)}
+                    className={`rounded-md border px-3 py-3 text-sm font-medium capitalize transition ${
+                      plea === value
+                        ? 'border-amber-200/35 bg-amber-100/12 text-amber-50'
+                        : 'border-white/10 bg-white/[0.03] text-stone-300'
+                    }`}
+                  >
+                    {value.replace('_', ' ')}
+                  </button>
+                ))}
+              </div>
+
               <button
-                type="submit"
-                className="shrink-0 rounded-md bg-amber-200 px-4 py-2.5 text-sm font-semibold text-stone-950 transition hover:bg-amber-100 active:scale-[0.98]"
+                type="button"
+                onClick={() => {
+                  void startCourt()
+                }}
+                disabled={status === 'starting' || status === 'running'}
+                className="mt-4 w-full rounded-md border border-amber-200/28 bg-amber-200/12 px-4 py-3 text-sm font-semibold text-amber-50 transition hover:bg-amber-200/18 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                Open Court
+                {status === 'idle' || status === 'error' ? 'Open Court' : 'Restart Proceeding'}
               </button>
-            </div>
-          </form>
+
+              {error ? (
+                <p className="mt-3 rounded-md border border-red-400/18 bg-red-500/10 px-3 py-2 text-sm text-red-100">
+                  {error}
+                </p>
+              ) : null}
+            </section>
+
+            <PhaseIndicator currentPhase={currentPhase} />
+            <TensionMeter value={tension} />
+
+            <section className="rounded-md border border-white/10 bg-black/50 p-4 backdrop-blur-md">
+              <p className="text-[11px] uppercase tracking-[0.18em] text-stone-400">Session</p>
+              <div className="mt-3 space-y-3 text-sm text-stone-300">
+                <p>
+                  <span className="text-stone-500">Status</span>
+                  <br />
+                  <span className="font-medium capitalize text-stone-100">{status}</span>
+                </p>
+                <p>
+                  <span className="text-stone-500">Category</span>
+                  <br />
+                  <span className="font-medium text-stone-100">{category || 'Pending intake'}</span>
+                </p>
+                <p>
+                  <span className="text-stone-500">Session ID</span>
+                  <br />
+                  <span className="font-medium text-stone-100">{sessionId ?? 'Not started'}</span>
+                </p>
+              </div>
+            </section>
+          </aside>
+
+          <main className="rounded-md border border-white/10 bg-black/28 backdrop-blur-sm">
+            {showSetup ? (
+              <CharacterSetup
+                characters={setupCharacters}
+                modelAssignments={modelAssignments}
+                modelOptions={modelOptions}
+                onModelChange={(characterId, model) => {
+                  setModelAssignments((currentAssignments) => ({
+                    ...currentAssignments,
+                    [characterId]: model,
+                  }))
+                }}
+              />
+            ) : (
+              <Scene
+                roles={roles}
+                activeAgentId={activeAgentId === 'arbiter' ? null : activeAgentId}
+                activeLine={activeLine}
+                benchLine={getBenchLine(activeAgentId, activeLine, status)}
+              />
+            )}
+          </main>
+
+          <aside>
+            {turns.length > 0 ? (
+              <TranscriptFeed roles={roles} turns={turns} />
+            ) : (
+              <section className="rounded-md border border-dashed border-white/10 bg-black/40 p-6 text-sm leading-6 text-stone-400 backdrop-blur-sm">
+                The transcript will populate once the clerk opens the session and each turn is streamed into the record.
+              </section>
+            )}
+          </aside>
         </div>
-      )}
+      </div>
     </div>
   )
 }
