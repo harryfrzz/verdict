@@ -10,6 +10,7 @@ export interface CaseFileSummary {
   level: DifficultyTier
   category: string
   summary: string
+  preview: CaseFile['preview']
 }
 
 const CASEFILES_ROOT = path.resolve(process.cwd(), 'casefiles')
@@ -57,12 +58,13 @@ export async function loadAllCaseFiles(): Promise<CaseFile[]> {
 export async function listCaseFileSummaries(): Promise<CaseFileSummary[]> {
   const caseFiles = await loadAllCaseFiles()
 
-  return caseFiles.map(({ id, title, level, category, summary }) => ({
+  return caseFiles.map(({ id, title, level, category, summary, preview }) => ({
     id,
     title,
     level,
     category,
     summary,
+    preview,
   }))
 }
 

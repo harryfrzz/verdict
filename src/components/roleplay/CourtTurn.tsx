@@ -9,6 +9,9 @@ interface CourtTurnProps {
   userInput?: string
   onUserInputChange?: (value: string) => void
   onUserSubmit?: () => void
+  secondaryActionLabel?: string
+  onSecondaryAction?: () => void
+  isBusy?: boolean
 }
 
 function CourtTurn({
@@ -22,6 +25,9 @@ function CourtTurn({
   userInput = '',
   onUserInputChange,
   onUserSubmit,
+  secondaryActionLabel,
+  onSecondaryAction,
+  isBusy = false,
 }: CourtTurnProps) {
   const wrapperPosition = side === 'left' ? 'justify-start' : 'justify-end'
   const textAlign = side === 'left' ? 'text-left items-start' : 'text-right items-end'
@@ -103,11 +109,21 @@ function CourtTurn({
               </label>
               <button
                 type="submit"
-                disabled={userInput.trim().length === 0}
+                disabled={isBusy || userInput.trim().length === 0}
                 className="mt-3 w-full rounded-lg bg-stone-950 px-4 py-3 text-sm font-semibold text-stone-50 transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:bg-stone-300 disabled:text-stone-500"
               >
-                Submit Argument
+                {isBusy ? 'Submitting...' : 'Submit Argument'}
               </button>
+              {secondaryActionLabel && onSecondaryAction ? (
+                <button
+                  type="button"
+                  disabled={isBusy}
+                  onClick={onSecondaryAction}
+                  className="mt-2 w-full rounded-lg border border-stone-300 bg-white px-4 py-3 text-sm font-semibold text-stone-800 transition hover:border-stone-950 hover:text-stone-950 disabled:cursor-not-allowed disabled:border-stone-200 disabled:text-stone-400"
+                >
+                  {secondaryActionLabel}
+                </button>
+              ) : null}
             </form>
           ) : (
             <div className="rounded-md border border-white/12 bg-stone-50 px-5 py-4 text-base font-medium leading-7 text-stone-950 shadow-[0_22px_70px_rgba(0,0,0,0.36)]">
