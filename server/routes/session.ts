@@ -1,53 +1,75 @@
 import { Router } from 'express'
 import type { Request, Response } from 'express'
-import { randomUUID } from 'crypto'
-import type { LegacyCaseFile, Plea } from '../../src/lib/agents/types.js'
+import { listCaseFileSummaries, loadCaseFileById } from '../../src/lib/casefiles/index.js'
+import { createSessionState } from '../../src/lib/session/index.js'
+import type { Role } from '../../src/lib/agents/types.js'
+import { sessionStore } from '../session/store.js'
 
 const router = Router()
 
-const VALID_PLEAS = new Set<Plea>(['guilty', 'not_guilty'])
-const MAX_QUESTION_LENGTH = 2000
+const VALID_ROLES = new Set<Role>(['prosecution', 'defense'])
 
-function detectCategory(question: string): string {
-  const q = question.toLowerCase()
-  if (/\b(ai|artificial intelligence|technology|tech|software|algorithm|robot|data)\b/.test(q)) return 'Technology'
-  if (/\b(war|genocide|holocaust|hiroshima|nagasaki|nuclear|weapon|military|battle)\b/.test(q)) return 'History · Ethics'
-  if (/\b(law|legal|crime|punishment|justice|convict|sentence|verdict)\b/.test(q)) return 'Law'
-  if (/\b(policy|government|political|democracy|vote|election|legislation)\b/.test(q)) return 'Policy'
-  return 'Ethics'
+function isRole(value: unknown): value is Role {
+  return typeof value === 'string' && VALID_ROLES.has(value as Role)
 }
 
-router.post('/', (req: Request, res: Response) => {
-  const { question, plea } = req.body as { question?: string; plea?: string }
+router.get('/cases', async (_req: Request, res: Response) => {
+  try {
+    const cases = await listCaseFileSummaries()
+    res.json({ cases })
+  } catch (error) {
+    console.error('[SESSION] case listing failed:', error)
+    res.status(500).json({ error: 'Unable to load case files.' })
+  }
+})
 
-  if (!question || question.trim().length < 5) {
-    res.status(400).json({ error: 'A question of at least 5 characters is required.' })
+router.get('/:sessionId', (req: Request, res: Response) => {
+  const sessionId = req.params.sessionId
+
+  if (typeof sessionId !== 'string' || sessionId.length === 0) {
+    res.status(400).json({ error: 'sessionId is required.' })
     return
   }
 
-  if (question.trim().length > MAX_QUESTION_LENGTH) {
-    res.status(400).json({ error: `Question must be under ${MAX_QUESTION_LENGTH} characters.` })
+  const session = sessionStore.get(sessionId)
+
+  if (!session) {
+    res.status(404).json({ error: 'Session not found.' })
     return
   }
 
-  if (plea !== undefined && !VALID_PLEAS.has(plea as Plea)) {
-    res.status(400).json({ error: 'plea must be "guilty" or "not_guilty".' })
+  res.json(session)
+})
+
+router.post('/', async (req: Request, res: Response) => {
+  const { caseId, role } = req.body as { caseId?: unknown; role?: unknown }
+
+  if (typeof caseId !== 'string' || caseId.trim().length === 0) {
+    res.status(400).json({ error: 'caseId is required.' })
     return
   }
 
-  const sessionId = randomUUID()
-  const category = detectCategory(question)
-
-  const caseFile: LegacyCaseFile = {
-    question: question.trim(),
-    category,
-    plea: plea ? (plea as Plea) : null,
-    transcript: [],
-    phase: 'opening',
-    round: 0,
+  if (!isRole(role)) {
+    res.status(400).json({ error: 'role must be "prosecution" or "defense".' })
+    return
   }
 
-  res.json({ sessionId, category, caseFile })
+  try {
+    const caseFile = await loadCaseFileById(caseId.trim())
+    const session = createSessionState(caseFile, role)
+
+    sessionStore.set(session)
+
+    res.status(201).json(session)
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith('No case file found')) {
+      res.status(404).json({ error: error.message })
+      return
+    }
+
+    console.error('[SESSION] creation failed:', error)
+    res.status(500).json({ error: 'Unable to create session.' })
+  }
 })
 
 export default router
