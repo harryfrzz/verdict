@@ -1,0 +1,75 @@
+{
+  "id": "warehouse-fire",
+  "title": "The Warehouse Fire",
+  "level": 2,
+  "category": "Arson",
+  "summary": "A business owner is charged after a failing warehouse burns down days before an insurance deadline.",
+  "preview": {
+    "summary": "A business owner is charged after a failing warehouse burns down days before an insurance deadline.",
+    "charge": "A business owner is accused of orchestrating a warehouse fire for financial gain.",
+    "evidence": "The case turns on insurance timing, surveillance gaps, and testimony about the owner’s recent conduct.",
+    "complication": "The building also had electrical faults and multiple people with access knew the site and alarm routines."
+  },
+  "date": "2026-02-18",
+  "location": "Harbor Industrial District",
+  "charges": [
+    "Arson",
+    "Insurance fraud"
+  ],
+  "policeReport": "Fire investigators concluded the blaze began near stacked solvent drums in the rear loading bay. The owner had increased coverage the week before, but inspectors also documented long-standing electrical faults and inconsistent alarm maintenance.",
+  "witnesses": [
+    {
+      "id": "w1-pierce",
+      "name": "Dana Pierce",
+      "relationToCase": "Fire investigator",
+      "statement": "The burn pattern concentrated in the loading bay and did not match a simple wiring fire. I cannot exclude deliberate ignition, but the damaged wiring complicated the final origin assessment.",
+      "reliabilityNotes": "Technical and credible, but careful not to overstate certainty."
+    },
+    {
+      "id": "w2-holland",
+      "name": "Troy Holland",
+      "relationToCase": "Former warehouse manager",
+      "statement": "The owner talked for weeks about being crushed by inventory losses and insurance deadlines. He also ordered valuable stock moved off-site two days before the fire.",
+      "reliabilityNotes": "Has direct operational knowledge, but left the company after a conflict over severance."
+    },
+    {
+      "id": "w3-nasir",
+      "name": "Leila Nasir",
+      "relationToCase": "Electrical contractor",
+      "statement": "I warned the warehouse twice that the rear panel was overheating and could fail under heavy load. The repairs were scheduled but had not been completed before the fire.",
+      "reliabilityNotes": "Supports an accidental-fire theory, though she did not inspect the scene after the blaze."
+    }
+  ],
+  "evidence": [
+    {
+      "id": "e1-policy-change",
+      "item": "Insurance endorsement",
+      "description": "Coverage was increased by 35 percent four days before the fire.",
+      "whereFound": "Insurer underwriting records",
+      "relevance": "Supports motive, but can also reflect legitimate business risk planning."
+    },
+    {
+      "id": "e2-camera-gap",
+      "item": "Surveillance gap report",
+      "description": "Exterior loading-bay cameras were offline for 47 minutes during the likely ignition window.",
+      "whereFound": "Security vendor maintenance logs",
+      "relevance": "Creates uncertainty around who accessed the loading bay before the fire spread."
+    },
+    {
+      "id": "e3-inventory-transfer",
+      "item": "Inventory transfer manifest",
+      "description": "High-value stock was moved to a secondary site two days before the blaze.",
+      "whereFound": "Company shipping records",
+      "relevance": "Could suggest planning, or a routine response to storage and cash-flow issues."
+    }
+  ],
+  "priorRulings": [
+    {
+      "title": "People v. Mireles",
+      "citation": "98 H.I. 411",
+      "relevance": "Insurance motive alone is insufficient without evidence connecting the accused to the fire-setting act itself."
+    }
+  ],
+  "prosecutionObjective": "Establish that the owner prepared financially for the fire, protected valuable stock in advance, and exploited the surveillance gap to arrange a deliberate burn.",
+  "defenseObjective": "Demonstrate that the fire origin remains uncertain, electrical defects provide a credible accidental cause, and the prosecution cannot bridge the gap between motive and actual ignition."
+}

@@ -28,7 +28,7 @@ LLM Provider(s)
 
 - authored case files instead of open-ended prompts
 - one human player, one AI lawyer, one AI judge
-- AI witnesses generated from case data when called
+- witness statements remain in the case file and are not rendered as live speaking courtroom entities
 - orchestrator streams AI turns but waits for player input every other turn
 
 This is the key product architecture change. The runtime is no longer a self-playing simulation. It is a turn-based game loop with explicit player action.
@@ -63,7 +63,8 @@ verdict/
     ├── routes/
     │   ├── session.ts
     │   ├── agent.ts
-    │   └── voice.ts
+    │   ├── voice.ts
+    │   └── realtime.ts
     └── llm/
 ```
 
@@ -134,14 +135,13 @@ type Phase =
   | 'case_study'
   | 'role_selection'
   | 'opening'
-  | 'witness_examination'
   | 'objection'
   | 'closing'
   | 'deliberation'
   | 'verdict'
 
 interface Turn {
-  speaker: 'player' | 'lawyer' | 'judge' | 'witness' | 'clerk'
+  speaker: 'player' | 'lawyer' | 'judge' | 'clerk'
   speakerId?: string
   role?: Role
   phase: Phase
@@ -158,7 +158,6 @@ interface SessionState {
   phase: Phase
   transcript: Turn[]
   awaitingPlayerInput: boolean
-  activeWitnessId: string | null
   objections: ObjectionRecord[]
 }
 ```
@@ -174,9 +173,9 @@ The orchestrator should:
 - determine who speaks next
 - stream AI turns
 - pause for player input
-- route witness questions to the correct witness prompt
 - route objections to the judge
 - assemble the final deliberation package for scoring
+- maintain separate realtime voice configuration for lawyer and judge
 
 ### 5.2 Important Change
 
@@ -186,8 +185,8 @@ The orchestrator must not auto-play the player side. It must wait for a submitte
 
 - AI turn: server-triggered and streamed
 - Player turn: client-submitted and then committed to transcript
-- Witness turn: AI-generated only when a witness is being questioned
 - Judge ruling: AI-generated on objection or final verdict
+- Witnesses: referenced from case data only, not generated as live speaking turns
 
 ## 6. Case File Injection Rules
 
@@ -205,16 +204,7 @@ Every AI call should receive only the context needed for that role.
 - current phase
 - level difficulty config
 
-### 6.2 Witness Receives
-
-- witness identity
-- witness statement
-- directly relevant evidence
-- narrow transcript slice if needed
-- current question
-- instruction to remain consistent with the authored statement
-
-### 6.3 Judge Receives
+### 6.2 Judge Receives
 
 - full case file
 - full transcript
@@ -262,7 +252,6 @@ Returns:
 Triggers:
 
 - AI lawyer turns
-- witness turns
 - judge rulings
 - final verdict generation
 
@@ -277,6 +266,15 @@ Accepts player audio and returns:
 - optional segment timing metadata
 
 The client should let the player review or edit this text before submission into the court transcript.
+
+### POST `/api/realtime`
+
+Creates separate realtime session configuration for:
+
+- AI lawyer voice session
+- AI judge voice session
+
+This is useful because realtime voice cannot be changed after audio has been emitted in a session.
 
 ## 9. Scoring Engine
 
@@ -310,13 +308,15 @@ New:
 - orchestrator streams AI turns
 - UI waits for player submission on player turns
 - player submission can originate from text input or voice transcript
+- lawyer and judge use audio-first realtime responses with transcript rendering
 
 This preserves the existing server streaming approach while changing the courtroom control flow.
 
 ## 11. Safety And Consistency Constraints
 
 - Do not send irrelevant witness context to a witness prompt.
-- Do not let witnesses invent facts outside their authored statements unless explicitly allowed by case design.
+- Do not treat witnesses as live speaking courtroom entities if the product flow keeps them off-screen.
+- Do not let arguments misstate authored witness statements.
 - Do not let the judge coach the player mid-session.
 - Do not let the AI lawyer ignore the selected difficulty profile.
 - Do not store API keys or provider secrets in client code.

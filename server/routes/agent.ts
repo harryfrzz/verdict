@@ -1,102 +1,151 @@
 import { Router } from 'express'
 import type { Request, Response } from 'express'
-import { SYSTEM_PROMPTS } from '../../src/lib/agents/prompts.js'
-import { AGENT_CONFIGS } from '../llm/config.js'
-import { streamAgentTurn, callAgentOnce } from '../llm/client.js'
-import type { CaseFile, AgentId } from '../../src/lib/agents/types.js'
+import {
+  buildFinalVerdictUserMessage,
+  buildJudgeRulingUserMessage,
+  buildLawyerUserMessage,
+  judgeSystemPrompt,
+  lawyerSystemPrompt,
+} from '../../src/lib/agents/prompts.js'
+import { getCourtActorConfig } from '../llm/config.js'
+import { callAgentOnce, streamAgentTurn } from '../llm/client.js'
+import { recordFinalVerdict, recordJudgeRuling, submitAgentTurn } from '../../src/lib/session/index.js'
+import { sessionStore } from '../session/store.js'
 
 const router = Router()
 
-const VALID_AGENT_IDS = new Set<AgentId>(['arbiter', 'accuse', 'advocate', 'chronicle', 'ethos'])
-const MAX_QUESTION_LENGTH = 2000
+type AgentAction = 'lawyer_turn' | 'judge_ruling' | 'final_verdict'
 
-function isValidCaseFile(cf: unknown): cf is CaseFile {
-  if (!cf || typeof cf !== 'object') return false
-  const c = cf as Record<string, unknown>
-  return (
-    typeof c.question === 'string' &&
-    c.question.length > 0 &&
-    c.question.length <= MAX_QUESTION_LENGTH &&
-    Array.isArray(c.transcript)
-  )
+function isAgentAction(value: unknown): value is AgentAction {
+  return value === 'lawyer_turn' || value === 'judge_ruling' || value === 'final_verdict'
 }
 
-function buildUserMessage(caseFile: CaseFile): string {
-  const transcriptText = caseFile.transcript
-    .filter(t => t.type === 'statement')
-    .map(t => `[${t.agentId.toUpperCase()}]: ${t.content}`)
-    .join('\n\n')
+function getSession(sessionId: unknown, res: Response) {
+  if (typeof sessionId !== 'string' || sessionId.trim().length === 0) {
+    res.status(400).json({ error: 'sessionId is required.' })
+    return undefined
+  }
 
+  const session = sessionStore.get(sessionId)
+  if (!session) {
+    res.status(404).json({ error: 'Session not found.' })
+    return undefined
+  }
+
+  return session
+}
+
+function buildAutoLossVerdict(session: NonNullable<ReturnType<typeof getSession>>): string {
   return [
-    `Case before the court: ${caseFile.question}`,
-    `Category: ${caseFile.category}`,
-    `Accused's plea: ${caseFile.plea ?? 'not yet entered'}`,
-    `Current phase: ${caseFile.phase}`,
-    '',
-    transcriptText
-      ? `Prior transcript:\n\n${transcriptText}`
-      : 'Court has just opened. No prior testimony.',
-    '',
-    'It is now your turn to speak.',
+    'OUTCOME: Loss for player.',
+    'SUMMARY: The player requested a verdict without presenting a substantive courtroom argument, so the opposing counsel prevails on the record presented.',
+    'REASONING: The court cannot credit advocacy that was never made. The authored case file contains enough material for opposing counsel to advance a theory of the case, but the player offered no developed argument, no rebuttal, and no evidence-based challenge. On that record, the player does not meet the burden of persuasion for their chosen side.',
+    'PLAYER_STRENGTHS: None developed on the live record.',
+    'PLAYER_GAPS: No opening or closing argument was presented. No evidence was cited by the player. No rebuttal was made to the opposing theory.',
+    `OPPONENT_ADVANTAGES: The ${session.aiRole} side was the only side to place a developed argument into the session record.`,
   ].join('\n')
 }
 
 router.post('/', async (req: Request, res: Response) => {
-  const { agentId, caseFile } = req.body as {
-    sessionId?: string
-    agentId: unknown
-    phase?: string
-    caseFile: unknown
+  const { sessionId, action, outcome } = req.body as {
+    sessionId?: unknown
+    action?: unknown
+    outcome?: unknown
   }
 
-  if (typeof agentId !== 'string' || !VALID_AGENT_IDS.has(agentId as AgentId)) {
-    res.status(400).json({ error: 'Invalid agentId.' })
+  if (!isAgentAction(action)) {
+    res.status(400).json({ error: 'action must be "lawyer_turn", "judge_ruling", or "final_verdict".' })
     return
   }
 
-  if (!isValidCaseFile(caseFile)) {
-    res.status(400).json({ error: 'Invalid or missing caseFile.' })
+  const session = getSession(sessionId, res)
+  if (!session) {
     return
   }
 
-  const validAgentId = agentId as AgentId
-  const systemPrompt = SYSTEM_PROMPTS[validAgentId]
-  const agentConfig = AGENT_CONFIGS[validAgentId]
+  if (action === 'lawyer_turn') {
+    const config = getCourtActorConfig(session.caseFile.level, 'lawyer')
+    const systemPrompt = lawyerSystemPrompt(session.aiRole)
+    const userMessage = buildLawyerUserMessage(session)
 
-  const userMessage = buildUserMessage(caseFile)
+    res.setHeader('Content-Type', 'text/event-stream')
+    res.setHeader('Cache-Control', 'no-cache')
+    res.setHeader('Connection', 'keep-alive')
+    res.setHeader('X-Accel-Buffering', 'no')
+    res.flushHeaders()
 
-  // ARBITER: non-streaming — returns full verdict JSON
-  if (validAgentId === 'arbiter') {
+    let fullContent = ''
+
     try {
-      const content = await callAgentOnce(systemPrompt, userMessage, agentConfig)
-      res.json({ content, done: true })
-    } catch (err) {
-      console.error('[ARBITER] call failed:', err)
-      res.status(500).json({ error: 'ARBITER call failed.' })
+      for await (const token of streamAgentTurn(systemPrompt, userMessage, config)) {
+        fullContent += token
+        res.write(`data: ${JSON.stringify({ token, done: false })}\n\n`)
+      }
+
+      const result = submitAgentTurn(session, 'lawyer', fullContent)
+      sessionStore.set(result.session)
+      res.write(`data: ${JSON.stringify({ token: '', done: true, fullContent, session: result.session })}\n\n`)
+    } catch (error) {
+      console.error('[LAWYER] stream failed:', error)
+      res.write(`data: ${JSON.stringify({ token: '', done: true, error: 'Stream failed', fullContent })}\n\n`)
+    } finally {
+      res.end()
     }
+
     return
   }
 
-  // All other agents: stream via SSE
-  res.setHeader('Content-Type', 'text/event-stream')
-  res.setHeader('Cache-Control', 'no-cache')
-  res.setHeader('Connection', 'keep-alive')
-  res.setHeader('X-Accel-Buffering', 'no')
-  res.flushHeaders()
+  if (action === 'judge_ruling') {
+    try {
+      const config = getCourtActorConfig(session.caseFile.level, 'judge')
+      const content = await callAgentOnce(
+        judgeSystemPrompt('ruling'),
+        buildJudgeRulingUserMessage(session),
+        {
+          ...config,
+          streaming: false,
+        },
+      )
 
-  let fullContent = ''
+      const resolvedOutcome = outcome === 'sustained' || outcome === 'overruled' || outcome === 'reserved'
+        ? outcome
+        : 'reserved'
+      const result = recordJudgeRuling(session, content, resolvedOutcome)
+      sessionStore.set(result.session)
+      res.json({ content, session: result.session })
+    } catch (error) {
+      console.error('[JUDGE] ruling failed:', error)
+      res.status(500).json({ error: 'Judge ruling failed.' })
+    }
+
+    return
+  }
 
   try {
-    for await (const token of streamAgentTurn(systemPrompt, userMessage, agentConfig)) {
-      fullContent += token
-      res.write(`data: ${JSON.stringify({ token, done: false })}\n\n`)
+    if (session.playerTurnsTaken === 0) {
+      const content = buildAutoLossVerdict(session)
+      const result = recordFinalVerdict(session, content)
+      sessionStore.set(result.session)
+      res.json({ content, session: result.session })
+      return
     }
-    res.write(`data: ${JSON.stringify({ token: '', done: true, fullContent })}\n\n`)
-  } catch (err) {
-    console.error(`[${validAgentId.toUpperCase()}] stream failed:`, err)
-    res.write(`data: ${JSON.stringify({ token: '', done: true, error: 'Stream failed', fullContent })}\n\n`)
-  } finally {
-    res.end()
+
+    const config = getCourtActorConfig(session.caseFile.level, 'judge')
+    const content = await callAgentOnce(
+      judgeSystemPrompt('verdict'),
+      buildFinalVerdictUserMessage(session),
+      {
+        ...config,
+        streaming: false,
+      },
+    )
+
+    const result = recordFinalVerdict(session, content)
+    sessionStore.set(result.session)
+    res.json({ content, session: result.session })
+  } catch (error) {
+    console.error('[JUDGE] verdict failed:', error)
+    res.status(500).json({ error: 'Final verdict failed.' })
   }
 })
 

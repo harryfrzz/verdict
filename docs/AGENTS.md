@@ -16,9 +16,13 @@ The repo uses a React frontend with a server-side API layer for LLM calls. The c
 
 **Case files are the source of truth.** Agent calls must be grounded in the selected case file, not in arbitrary free-form user prompts.
 
-**Inject only relevant case context.** Every agent call receives the relevant case file sections. Do not flood witness prompts with the full record unless required.
+**Inject only relevant case context.** Every agent call receives the relevant case file sections.
 
 **Voice input is transcription first.** Audio must resolve into transcript text before it becomes part of the courtroom record.
+
+**Lawyer and judge are audio-first.** Their responses should be delivered as speech plus transcript text using `gpt-realtime-1.5`.
+
+**Use separate realtime voice configurations for lawyer and judge.** Realtime voice cannot be changed after audio has started in a session.
 
 **The Clerk is still not an LLM call.** Clerk copy should remain deterministic and procedural.
 
@@ -33,8 +37,9 @@ The target runtime entities are:
 - one human player
 - one opposing AI lawyer
 - one AI judge
-- one active AI witness when a witness is on the stand
 - one clerk layer for procedural announcements
+
+Witnesses are off-screen case-file records, not live courtroom speakers.
 
 The old five always-on AI entities are no longer the product target.
 
@@ -62,6 +67,8 @@ Difficulty settings should live in structured config, for example `config/levels
 - reasoning notes
 - objection aggressiveness
 - retrieval usage when applicable
+- preferred lawyer voice profile
+- preferred judge voice profile
 
 ### Scoring
 
@@ -75,10 +82,10 @@ Scoring should live in `src/lib/scoring/` and support:
 ## Turn Orchestration Rules
 
 - The client can only advance the court by submitting player text or a reviewed voice transcript on player turns.
-- The server can advance AI lawyer, witness, and judge turns.
+- The server can advance AI lawyer and judge turns.
 - The orchestrator must know whether the session is currently waiting for user input.
-- Witnesses should only be instantiated when relevant to the phase.
 - Objections should be routed to the judge as a separate ruling path.
+- Witness material should be cited from the case file rather than rendered as a live speaking turn.
 
 ## Agent Context Rules
 
@@ -90,17 +97,8 @@ Receives:
 - full case file
 - transcript so far
 - phase
-- relevant witness context
+- relevant witness statements
 - difficulty config
-
-### Witness
-
-Receives:
-
-- witness identity
-- witness statement
-- directly relevant evidence
-- current question
 
 ### Judge
 
@@ -118,6 +116,7 @@ Receives:
 - Do not make the judge chatty during normal play.
 - Do not bypass the player-turn wait state.
 - Do not hardcode difficulty behavior only inside prompt prose if it belongs in config.
+- Do not render witnesses as active courtroom speakers if the current product direction keeps them off-screen.
 
 ## Design Direction
 
@@ -127,3 +126,4 @@ The UI should still feel like a courtroom, but the interaction model is now much
 - clear input affordance during player turns
 - visible transcript pressure during AI turns
 - explicit score breakdown after verdict
+- clear audio playback state for lawyer and judge responses

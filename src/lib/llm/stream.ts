@@ -3,6 +3,7 @@ export interface StreamEvent {
   done: boolean
   fullContent?: string
   error?: string
+  session?: unknown
 }
 
 export async function* readSSEStream(response: Response): AsyncGenerator<StreamEvent> {

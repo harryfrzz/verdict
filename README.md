@@ -36,7 +36,7 @@ Verdict should feel like a courtroom strategy game and speaking exercise:
 4. Player chooses a role: `Prosecution` or `Defense`.
 5. Court opens and the clerk reads the charges.
 6. Court proceeds as alternating turns between the player and the AI lawyer.
-7. Witnesses are examined and cross-examined.
+7. Witness statements are challenged and cited from the case file.
 8. Objections may be raised and ruled on by the judge.
 9. Both sides deliver closing arguments.
 10. The judge evaluates the transcript against the case file.
@@ -56,8 +56,8 @@ The old 5-agent model is deprecated for product design purposes. The target inte
 
 Optional supporting runtime entities:
 
-- `AI Witness`
-  Generated from the case file. Must remain consistent with the written statement and known evidence.
+- `Witness Record`
+  Witnesses exist as structured case-file statements and reliability notes. They are not shown as live courtroom participants.
 - `Clerk`
   System narration only, not a reasoning entity.
 
@@ -115,6 +115,22 @@ The player should be able to respond by:
 
 Voice is important because it makes the experience feel performative rather than purely mechanical.
 
+#### Realtime Audio Output
+
+Both the AI lawyer and AI judge should respond with:
+
+- streamed audio
+- live transcript text rendered in the UI
+
+The intended model for both speaking roles is `gpt-realtime-1.5`.
+
+Voice direction:
+
+- lawyer uses a younger, sharper voice profile
+- judge uses a more mature, steadier voice profile
+
+Because realtime voice cannot be changed after audio has been emitted in a session, the lawyer and judge should use separate realtime session configurations.
+
 #### Win/Loss And Feedback
 
 The judge should evaluate both sides on:
@@ -145,18 +161,16 @@ The target court flow is:
 4. Role select
 5. Charges read by clerk
 6. Opening statements
-7. Witness examination and cross-examination
-8. Objection handling
-9. Closing arguments
-10. Deliberation
-11. Verdict
-12. Post-verdict actions
+7. Witness-statement challenges and objection handling
+8. Closing arguments
+9. Deliberation
+10. Verdict
+11. Post-verdict actions
 
 The transcript should alternate between:
 
 - AI lawyer turn
 - player turn
-- witness turn when relevant
 - judge ruling when needed
 
 The orchestrator should no longer auto-play the entire court without waiting for the user.
@@ -173,6 +187,8 @@ The repo should evolve toward these additions:
   Difficulty-to-model mapping and reasoning presets
 - `server/routes/voice.ts`
   Audio upload or transcription endpoint
+- `server/routes/realtime.ts`
+  Realtime session bootstrap for lawyer and judge voice sessions
 - `src/lib/scoring/`
   Score calculation, rubric helpers, verdict formatting
 - `src/lib/casefiles/`
@@ -186,8 +202,6 @@ Every AI call must receive the relevant case context.
 
 - AI lawyer receives:
   full case summary, charges, objectives, evidence, relevant witness statements, transcript so far, and player role
-- AI witness receives:
-  only the relevant witness statement, witness identity, directly relevant evidence, transcript slice if needed, and current question
 - AI judge receives:
   full case file, full transcript, objections, and scoring rubric
 
@@ -236,6 +250,7 @@ Prompt goals:
 - cite evidence directly from the case file
 - avoid generic moralizing
 - adapt difficulty to level config
+- produce streamed voice output plus transcript using `gpt-realtime-1.5`
 
 ### 2. Judge
 
@@ -252,22 +267,7 @@ Prompt goals:
 - avoid coaching during play
 - score both sides at the end
 - produce verdict, score breakdown, and feedback
-
-### 3. Witness
-
-Input:
-
-- witness identity
-- written statement
-- relevant evidence
-- current question
-
-Prompt goals:
-
-- remain consistent with the case file
-- answer only what was asked
-- do not invent unrelated facts
-- preserve witness personality and reliability profile if defined
+- produce streamed voice output plus transcript using `gpt-realtime-1.5`
 
 ## Orchestrator Rules
 
@@ -278,10 +278,12 @@ This section replaces what would otherwise live in `AGENTS.md`.
 - The orchestrator must wait for player input on every player turn.
 - The orchestrator must not auto-generate player arguments.
 - Every agent call must receive the relevant case file sections.
-- Witness responses must stay consistent with the written statement.
+- Witnesses are not live speaking participants during proceedings.
+- Any reference to witness material must stay consistent with the written statement.
 - Judge rulings must be brief during play and detailed only at verdict time.
 - Difficulty config must affect both the AI lawyer behaviour and the case complexity.
 - The transcript is the source of truth for turn order and scoring.
+- Lawyer and judge audio should use distinct realtime voice configurations.
 
 ### Player Turn Handling
 
@@ -312,7 +314,7 @@ The old "auto-running session loop" plan is no longer the right milestone. The n
 4. Replace full auto-play orchestration with turn-based player input orchestration.
 5. Add text player turns.
 6. Add voice transcription route and mic-driven turn submission.
-7. Add witness consistency prompt and witness turn handling.
+7. Add lawyer and judge realtime audio output with transcript rendering.
 8. Add judge scoring and verdict feedback.
 9. Add progression, retry, and replay flows.
 
@@ -407,6 +409,7 @@ The target direction is:
 - human player turns
 - structured case files
 - win/loss scoring
+- witnesses referenced only through case-file records
 
 ## Local Development
 

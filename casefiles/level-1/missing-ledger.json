@@ -1,0 +1,75 @@
+{
+  "id": "missing-ledger",
+  "title": "The Missing Ledger",
+  "level": 1,
+  "category": "Theft",
+  "summary": "A clerk is accused of stealing courthouse funds after a ledger page disappears before audit.",
+  "preview": {
+    "summary": "A clerk is accused of stealing courthouse funds after a ledger page disappears before audit.",
+    "charge": "A courthouse clerk is accused of stealing funds from an internal ledger.",
+    "evidence": "The prosecution relies on access records, missing paperwork, and the timing of the vanished ledger entry.",
+    "complication": "The storage cabinet was old, key access was loosely controlled, and the office workflow was poorly documented."
+  },
+  "date": "2026-03-11",
+  "location": "Briar County Courthouse Records Office",
+  "charges": [
+    "Theft of courthouse funds",
+    "Tampering with financial records"
+  ],
+  "policeReport": "Investigators found a missing ledger page tied to a petty-cash withdrawal, inconsistent drawer counts, and badge access logs showing the clerk entered the records office shortly before the discrepancy was discovered.",
+  "witnesses": [
+    {
+      "id": "w1-hale",
+      "name": "Marin Hale",
+      "relationToCase": "Senior auditor",
+      "statement": "I began the audit at 4:15 p.m. and found page 48 missing from the petty-cash ledger. The defendant had handled petty-cash reconciliation earlier that afternoon.",
+      "reliabilityNotes": "Methodical and detail-focused, but only saw the records after the alleged theft."
+    },
+    {
+      "id": "w2-soto",
+      "name": "Elias Soto",
+      "relationToCase": "Facilities supervisor",
+      "statement": "The records cabinet lock had been sticking for weeks, and multiple staff borrowed the backup key from my office without always signing it out.",
+      "reliabilityNotes": "Credible on office procedures, but admits record-keeping around the key was loose."
+    },
+    {
+      "id": "w3-kim",
+      "name": "Rina Kim",
+      "relationToCase": "Deputy clerk",
+      "statement": "I saw the defendant near the records cabinet before closing, but I also saw the finance supervisor in the room around the same time.",
+      "reliabilityNotes": "Observed the scene directly, but did not see anyone remove money or documents."
+    }
+  ],
+  "evidence": [
+    {
+      "id": "e1-badge-log",
+      "item": "Badge access log",
+      "description": "Electronic access records showing entries into the records office between 3:40 p.m. and 4:10 p.m.",
+      "whereFound": "Court security system export",
+      "relevance": "Places multiple employees near the cabinet before the audit discrepancy was found."
+    },
+    {
+      "id": "e2-ledger-gap",
+      "item": "Missing ledger page",
+      "description": "Page 48 is absent from the petty-cash ledger, leaving a gap around a $480 withdrawal entry.",
+      "whereFound": "Petty-cash ledger book",
+      "relevance": "Supports record tampering, but does not identify who removed it."
+    },
+    {
+      "id": "e3-drawer-count",
+      "item": "Cash drawer count sheet",
+      "description": "End-of-day count was short by $480 compared with the prior documented balance.",
+      "whereFound": "Auditor work papers",
+      "relevance": "Corroborates that funds were missing after the ledger page disappeared."
+    }
+  ],
+  "priorRulings": [
+    {
+      "title": "State v. Larkin",
+      "citation": "214 B.C. 88",
+      "relevance": "Circumstantial access evidence is probative, but it is weaker when multiple people had equivalent opportunity."
+    }
+  ],
+  "prosecutionObjective": "Prove the defendant used privileged access to remove the ledger page and take the missing funds before the audit began.",
+  "defenseObjective": "Show that opportunity was shared, the office controls were weak, and the evidence does not reliably identify the defendant as the person who removed either the cash or the ledger page."
+}

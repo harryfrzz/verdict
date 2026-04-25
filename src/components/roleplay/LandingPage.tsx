@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-export type CaseDifficulty = 'Easy' | 'Medium' | 'Difficult'
+export type CaseDifficulty = 'Easy' | 'Medium' | 'Hard'
 
 export interface CaseDifficultyRange {
   difficulty: CaseDifficulty
@@ -41,7 +41,7 @@ function LandingPage({ levels, onPlay }: LandingPageProps) {
           <p className="text-[11px] uppercase tracking-[0.2em] text-amber-100/80">Verdict</p>
           <h1 className="mt-2 text-4xl font-semibold text-stone-100">Choose a case level</h1>
           <p className="mt-3 text-sm leading-6 text-stone-300">
-            Each level contains Easy, Medium, and Difficult versions. Open a case, inspect the
+            Each level contains Easy, Medium, and Hard versions. Open a case, inspect the
             details, then play.
           </p>
         </div>
