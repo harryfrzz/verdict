@@ -107,6 +107,9 @@ function App() {
   const [courtOpen, setCourtOpen] = useState(false)
   const [selectedLevel, setSelectedLevel] = useState<CaseLevel | null>(null)
   const [selectedRange, setSelectedRange] = useState<CaseDifficultyRange | null>(null)
+  const [caseDetailsOpen, setCaseDetailsOpen] = useState(false)
+  const [adjournmentOpen, setAdjournmentOpen] = useState(false)
+  const [returnCountdown, setReturnCountdown] = useState(5)
   const [userSide, setUserSide] = useState<UserSide>('advocate')
   const [session, setSession] = useState<ApiSession | null>(null)
   const [streamingLawyerText, setStreamingLawyerText] = useState('')
@@ -163,6 +166,25 @@ function App() {
       window.removeEventListener('pointerdown', handlePointerDown)
     }
   }, [judgeControlsOpen])
+
+  useEffect(() => {
+    if (!adjournmentOpen) {
+      return
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      if (returnCountdown <= 1) {
+        resetCourt()
+        return
+      }
+
+      setReturnCountdown((countdown) => countdown - 1)
+    }, 1000)
+
+    return () => {
+      window.clearTimeout(timeoutId)
+    }
+  }, [adjournmentOpen, returnCountdown])
 
   const roleMap = useMemo(() => buildRoleMap(session, userSide), [session, userSide])
   const visibleTurns = useMemo(() => session?.transcript ?? [], [session])
@@ -338,6 +360,23 @@ function App() {
     }
   }
 
+  async function replayLevel() {
+    if (!selectedLevel) {
+      return
+    }
+
+    setCaseDetailsOpen(false)
+    setAdjournmentOpen(false)
+    setReturnCountdown(5)
+    await openCourt()
+  }
+
+  function initiateAdjournment() {
+    setCaseDetailsOpen(false)
+    setReturnCountdown(5)
+    setAdjournmentOpen(true)
+  }
+
   function resetCourt() {
     setCourtOpen(false)
     setSession(null)
@@ -346,6 +385,9 @@ function App() {
     setUserTurnInput('')
     setPlayerTurnUnlocked(false)
     setJudgeControlsOpen(false)
+    setCaseDetailsOpen(false)
+    setAdjournmentOpen(false)
+    setReturnCountdown(5)
     setSelectedLevel(null)
     setSelectedRange(null)
     setLoadingError(null)
@@ -378,17 +420,6 @@ function App() {
                 alt="Judge"
               />
             </button>
-            {judgeControlsOpen ? (
-              <div className="absolute left-1/2 top-full mt-2 flex w-max -translate-x-1/2 animate-verdict-float-in items-center gap-3 rounded-md border border-stone-700 bg-stone-950/96 px-3 py-2 shadow-[0_18px_42px_rgba(0,0,0,0.36)]">
-                <button
-                  type="button"
-                  onClick={resetCourt}
-                  className="rounded-md border border-stone-700 bg-stone-900 px-3 py-2 text-sm font-medium text-stone-100 transition hover:border-stone-500 hover:bg-stone-800 active:scale-[0.98]"
-                >
-                  Court adjourned
-                </button>
-              </div>
-            ) : null}
           </div>
           <div className="group absolute left-1/2 top-[65%] z-[3] -translate-x-1/2 -translate-y-1/2">
             <img
@@ -562,9 +593,61 @@ function App() {
                     {selectedLevel?.title ?? 'Live Backend Session'}
                   </p>
                 </div>
-                <span className="rounded-full border border-stone-700 bg-stone-950 px-3 py-1 text-[11px] uppercase tracking-[0.16em] text-stone-300">
-                  {visibleTurns.length} turns
-                </span>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.preventDefault()
+                      initiateAdjournment()
+                    }}
+                    className="rounded-md border border-red-400/50 bg-red-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:border-red-300 hover:bg-red-500"
+                  >
+                    Court adjourned
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.preventDefault()
+                      void replayLevel()
+                    }}
+                    className="rounded-md bg-amber-200 px-3 py-1.5 text-xs font-semibold text-stone-950 transition hover:bg-amber-100 active:scale-[0.98]"
+                  >
+                    Replay level
+                  </button>
+                  {selectedLevel && selectedRange ? (
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.preventDefault()
+                        setCaseDetailsOpen(true)
+                      }}
+                      className="rounded-md border border-stone-700 bg-stone-950 px-3 py-1.5 text-xs font-medium text-stone-200 transition hover:border-stone-500 hover:bg-stone-800"
+                    >
+                      Case details
+                    </button>
+                  ) : null}
+                  <span className="hidden h-1.5 w-24 overflow-hidden rounded-full bg-stone-800 sm:block">
+                    <span
+                      className="block h-full rounded-full bg-amber-200 transition-all duration-300"
+                      style={{
+                        width: `${Math.min(
+                          100,
+                          Math.max(
+                            0,
+                            session?.maxTurnsPerSide
+                              ? ((session.playerTurnsTaken + session.lawyerTurnsTaken) /
+                                  (session.maxTurnsPerSide * 2)) *
+                                  100
+                              : 0,
+                          ),
+                        )}%`,
+                      }}
+                    />
+                  </span>
+                  <span className="rounded-full border border-stone-700 bg-stone-950 px-3 py-1 text-[11px] uppercase tracking-[0.16em] text-stone-300">
+                    {visibleTurns.length} turns
+                  </span>
+                </div>
               </summary>
 
               <div className="mt-3 max-h-[42vh] space-y-3 overflow-y-auto pb-2">
@@ -603,6 +686,85 @@ function App() {
       {loadingError && courtOpen ? (
         <div className="fixed right-4 top-4 z-40 rounded-md border border-red-900/70 bg-stone-950/96 px-4 py-3 text-sm text-red-200 shadow-[0_18px_42px_rgba(0,0,0,0.32)]">
           {loadingError}
+        </div>
+      ) : null}
+
+      {adjournmentOpen ? (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-stone-950/88 px-4 backdrop-blur-md">
+          <div className="w-full max-w-3xl animate-verdict-float-in overflow-hidden rounded-3xl border border-red-300/25 bg-[linear-gradient(145deg,rgba(28,25,23,0.98),rgba(12,10,9,0.98)_58%,rgba(69,10,10,0.88))] shadow-[0_34px_110px_rgba(0,0,0,0.72)] ring-1 ring-white/[0.05]">
+            <div className="relative h-72 overflow-hidden bg-stone-900 sm:h-96">
+              <img
+                className="absolute inset-0 h-full w-full object-cover"
+                src="/court_adjourned.png"
+                alt="Court adjourned"
+              />
+              <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(12,10,9,0.04)_0%,rgba(12,10,9,0.18)_42%,rgba(12,10,9,0.94)_100%)]" />
+            </div>
+            <div className="px-6 py-7 text-center sm:px-8">
+              <h2 className="text-3xl font-black uppercase tracking-[0.16em] text-red-500 sm:text-4xl">
+                Court adjourned
+              </h2>
+              <p className="mt-3 text-sm font-medium text-stone-300">
+                Returning to main menu in {returnCountdown} second{returnCountdown === 1 ? '' : 's'}.
+              </p>
+              <button
+                type="button"
+                onClick={resetCourt}
+                className="mt-6 rounded-2xl border border-amber-50/45 bg-gradient-to-r from-amber-100 to-orange-200 px-6 py-3 text-sm font-bold text-stone-950 shadow-[0_18px_48px_rgba(251,191,36,0.24)] transition hover:-translate-y-0.5 hover:from-amber-50 hover:to-orange-100 active:scale-[0.98]"
+              >
+                Return to main menu
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {caseDetailsOpen && selectedLevel && selectedRange ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
+          <div className="w-full max-w-2xl animate-verdict-float-in rounded-2xl border border-stone-700 bg-stone-950 p-5 shadow-[0_32px_90px_rgba(0,0,0,0.62)]">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.18em] text-stone-500">
+                  {selectedRange.difficulty} Mission
+                </p>
+                <h2 className="mt-2 text-2xl font-semibold text-stone-100">
+                  {selectedLevel.title}
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCaseDetailsOpen(false)}
+                className="rounded-lg border border-stone-700 bg-stone-900 px-3 py-2 text-sm text-stone-300 transition hover:border-stone-500 hover:text-stone-100"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="mt-5 grid gap-3 rounded-xl border border-stone-800 bg-stone-900 p-4">
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.16em] text-stone-500">Charge</p>
+                <p className="mt-1 text-sm leading-6 text-stone-200">{selectedLevel.charge}</p>
+              </div>
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.16em] text-stone-500">Evidence</p>
+                <p className="mt-1 text-sm leading-6 text-stone-300">{selectedLevel.evidence}</p>
+              </div>
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.16em] text-stone-500">
+                  Complication
+                </p>
+                <p className="mt-1 text-sm leading-6 text-stone-300">
+                  {selectedLevel.complication}
+                </p>
+              </div>
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.16em] text-stone-500">
+                  Difficulty
+                </p>
+                <p className="mt-1 text-sm leading-6 text-stone-300">{selectedRange.challenge}</p>
+              </div>
+            </div>
+          </div>
         </div>
       ) : null}
     </div>

@@ -1,0 +1,75 @@
+{
+  "id": "algorithmic-crash",
+  "title": "The Algorithmic Crash",
+  "level": 3,
+  "category": "Corporate negligence",
+  "summary": "A transport AI caused a fatal crash after executives allegedly ignored safety warnings.",
+  "preview": {
+    "summary": "A transport AI caused a fatal crash after executives allegedly ignored safety warnings.",
+    "charge": "Executives are accused of criminal negligence after deploying unsafe transport AI.",
+    "evidence": "Internal testing, launch approvals, and known braking failures form the backbone of the prosecution case.",
+    "complication": "Responsibility is split across executives, engineers, regulators, and outside sensor dependencies."
+  },
+  "date": "2026-01-09",
+  "location": "Northline Autonomous Transit Corridor",
+  "charges": [
+    "Criminal negligence",
+    "Reckless endangerment"
+  ],
+  "policeReport": "A self-driving passenger shuttle failed to brake at an urban merge and struck another vehicle, causing one death and several serious injuries. Investigators recovered internal safety reports describing unresolved edge-case braking failures and approval emails showing the launch moved forward despite requests for additional testing.",
+  "witnesses": [
+    {
+      "id": "w1-ross",
+      "name": "Maya Ross",
+      "relationToCase": "Lead safety engineer",
+      "statement": "I flagged inconsistent braking performance under low-visibility merge conditions and recommended delaying release until the simulator and road tests matched. Leadership approved deployment before that validation was complete.",
+      "reliabilityNotes": "Directly involved in safety review, though frustrated by internal escalation failures."
+    },
+    {
+      "id": "w2-kwan",
+      "name": "Leon Kwan",
+      "relationToCase": "Product vice president",
+      "statement": "Engineering told us the latest patch reduced the braking issue to a rare edge case. The launch followed the roadmap we believed met the required internal thresholds.",
+      "reliabilityNotes": "Central to the approval decision, but motivated to frame the launch as reasonable."
+    },
+    {
+      "id": "w3-mendez",
+      "name": "Dr. Sofia Mendez",
+      "relationToCase": "External autonomy auditor",
+      "statement": "The risk memo described the same type of merge conflict that later occurred in the crash. The probability estimate was uncertain, but the hazard itself was not speculative.",
+      "reliabilityNotes": "Technically strong and independent, though she reviewed only sampled internal materials."
+    }
+  ],
+  "evidence": [
+    {
+      "id": "e1-risk-memo",
+      "item": "Internal risk memorandum",
+      "description": "A pre-launch memo warning that the braking stack could underperform when sensor confidence fell during merge maneuvers.",
+      "whereFound": "Company safety archive",
+      "relevance": "Shows advance notice of the same failure mode implicated in the crash."
+    },
+    {
+      "id": "e2-launch-approval",
+      "item": "Launch approval email chain",
+      "description": "Messages documenting executive approval of deployment after discussion of timeline pressure and patch confidence.",
+      "whereFound": "Corporate email production",
+      "relevance": "Links decision-makers to the final release despite unresolved concerns."
+    },
+    {
+      "id": "e3-telemetry",
+      "item": "Vehicle telemetry packet",
+      "description": "Recorded braking hesitation and confidence oscillation in the seconds before impact.",
+      "whereFound": "Crash data recorder",
+      "relevance": "Provides technical support that the collision followed the warned-about braking pattern."
+    }
+  ],
+  "priorRulings": [
+    {
+      "title": "State v. Carris Systems",
+      "citation": "301 N.T. 122",
+      "relevance": "A negligence case can proceed when leadership had notice of a concrete safety hazard and still authorized deployment into public use."
+    }
+  ],
+  "prosecutionObjective": "Show executives knew of a specific braking hazard, accepted the public safety risk, and launched anyway under commercial pressure.",
+  "defenseObjective": "Show the technical risk was not fully understood, mitigation efforts were underway, and the prosecution cannot fairly assign criminal blame for a complex systems failure."
+}

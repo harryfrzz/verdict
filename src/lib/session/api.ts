@@ -61,7 +61,7 @@ export interface ApiCaseCard {
   evidence: string
   complication: string
   ranges: Array<{
-    difficulty: 'Easy' | 'Medium' | 'Difficult'
+    difficulty: 'Easy' | 'Medium' | 'Hard'
     challenge: string
     template: string
   }>
@@ -96,40 +96,92 @@ function resolveApiBaseUrl(): string {
 
 const API_BASE_URL = resolveApiBaseUrl()
 
+const thumbnailByCaseId: Record<string, string> = {
+  'missing-ledger': '/missing_ledger.png',
+  'warehouse-fire': '/warehouse_fire.png',
+  'algorithmic-crash': '/algorithmic_crash.png',
+  'state-secret': '/state_secret.png',
+}
+
 const difficultyRangesByLevel: Record<number, ApiCaseCard['ranges']> = {
   1: [
     {
       difficulty: 'Easy',
       challenge: 'A relatively direct fact pattern with limited ambiguity and fewer competing explanations.',
-      template: 'Opening statement focused on the strongest direct reading of the evidence.',
+      template:
+        'A courthouse clerk is accused of stealing petty funds after a ledger page disappears before audit. The evidence turns on access, motive, and whether the cabinet was secure.',
+    },
+    {
+      difficulty: 'Medium',
+      challenge: 'Adds conflicting access histories, supervisor involvement, and more room for reasonable doubt.',
+      template:
+        'A courthouse clerk is accused of coordinated embezzlement from filing fees. Missing ledger pages align with deposits they handled, but a supervisor also had override access.',
+    },
+    {
+      difficulty: 'Hard',
+      challenge: 'Introduces audit-log disputes, shared credentials, and a harder causation trail to argue through.',
+      template:
+        'A courthouse clerk is accused of destroying financial records to conceal larger fraud. Audit logs point to their terminal, but login sharing was common in the office.',
     },
   ],
   2: [
     {
       difficulty: 'Easy',
-      challenge: 'A more contested theory with a viable alternate explanation to address.',
-      template: 'Opening statement focused on the strongest grounded reading of the fire evidence.',
+      challenge: 'The motive trail is clear and the fact pattern is mostly linear.',
+      template:
+        'A business owner is charged with insurance-motivated arson after a failing warehouse burns down. Coverage was increased shortly before the fire, but electrical faults were documented.',
+    },
+    {
+      difficulty: 'Medium',
+      challenge: 'The timeline gets murkier and an alternate suspect has credible motive and access.',
+      template:
+        'A business owner is charged with arson after a warehouse burns down days before an insurance deadline. Security footage is incomplete and a former employee had threatened revenge.',
+    },
+    {
+      difficulty: 'Hard',
+      challenge: 'This version relies on ambiguous messages and competing inferences from circumstantial evidence.',
+      template:
+        'A business owner is accused of conspiring to burn a warehouse and falsify insurance claims. Messages mention removing inventory, but may refer to a planned renovation.',
     },
   ],
   3: [
     {
       difficulty: 'Easy',
-      challenge: 'A higher-complexity case with more technical pressure on both sides.',
-      template: 'Opening statement focused on the strongest grounded theory of negligence.',
+      challenge: 'The warning signs are visible and the defense has fewer technical escape routes.',
+      template:
+        'A transport AI caused a fatal crash after internal tests showed braking failures. Executives launched after engineers said a patch had resolved the issue.',
+    },
+    {
+      difficulty: 'Medium',
+      challenge: 'Regulatory compliance and incomplete reproduction of the bug make negligence less straightforward.',
+      template:
+        'A transport AI caused a fatal crash after executives received unresolved safety warnings. The case turns on recklessness, regulatory compliance, and foreseeability.',
+    },
+    {
+      difficulty: 'Hard',
+      challenge: 'This version forces both sides to argue around third-party dependencies and diluted accountability.',
+      template:
+        'A transport AI caused a fatal crash after a risk report predicted the same crash pattern under rare conditions. The defense argues third-party sensor data caused the failure.',
     },
   ],
   4: [
     {
       difficulty: 'Easy',
-      challenge: 'A high-pressure case with major ambiguity around intent and public interest.',
-      template: 'Opening statement focused on the strongest grounded theory of disclosure or misconduct.',
+      challenge: 'The admission is clear, but the public-interest defense still creates a moral gray area.',
+      template:
+        'A scientist admits leaking classified research to a journalist. The defense argues the leak exposed a concealed safety risk the public had a right to know.',
     },
-  ],
-  5: [
     {
-      difficulty: 'Easy',
-      challenge: 'An aspirational challenge case with layered reasoning demands.',
-      template: 'Opening statement focused on the strongest grounded theory available.',
+      difficulty: 'Medium',
+      challenge: 'The link between initial disclosure and foreign access becomes harder to assign cleanly.',
+      template:
+        'A scientist is accused of espionage after leaked classified research reached foreign analysts. The scientist claims they only disclosed the material to a domestic journalist.',
+    },
+    {
+      difficulty: 'Hard',
+      challenge: 'This version adds ambiguous encrypted coordination evidence and a sharper dispute over intent.',
+      template:
+        'A scientist is accused of intentionally compromising national-security research. Encrypted messages suggest coordination before the leak, but may be privileged strategy notes.',
     },
   ],
 }
@@ -140,7 +192,7 @@ function mapCase(caseFile: ApiCaseLevel): ApiCaseCard {
     level: caseFile.level,
     title: caseFile.title,
     category: caseFile.category,
-    thumbnailSrc: caseFile.id === 'warehouse-fire' ? '/lawyer_1.png' : '/witness_1_chronicle.png',
+    thumbnailSrc: thumbnailByCaseId[caseFile.id] ?? '/missing_ledger.png',
     summary: caseFile.preview.summary,
     charge: caseFile.preview.charge,
     evidence: caseFile.preview.evidence,
