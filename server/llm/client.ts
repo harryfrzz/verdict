@@ -9,7 +9,7 @@ type Message = { role: 'system' | 'user' | 'assistant'; content: string }
 let _openai: OpenAI | null = null
 let _groq: Groq | null = null
 
-function getOpenAIClient(): OpenAI {
+export function getOpenAIClient(): OpenAI {
   if (!_openai) {
     if (!process.env.OPENAI_API_KEY) throw new Error('OPENAI_API_KEY is not set')
     _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })

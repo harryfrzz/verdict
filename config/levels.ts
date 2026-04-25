@@ -13,8 +13,8 @@ export const LEVEL_CONFIGS: Record<DifficultyTier, LevelConfig> = {
     objectionAggressiveness: 'low',
     witnessConsistencyStrictness: 'medium',
     retrievalEnabled: false,
-    lawyerVoice: 'alloy',
-    judgeVoice: 'sage',
+    lawyerVoice: 'ash',
+    judgeVoice: 'echo',
   },
   2: {
     level: 2,
@@ -28,8 +28,8 @@ export const LEVEL_CONFIGS: Record<DifficultyTier, LevelConfig> = {
     objectionAggressiveness: 'medium',
     witnessConsistencyStrictness: 'medium',
     retrievalEnabled: false,
-    lawyerVoice: 'alloy',
-    judgeVoice: 'sage',
+    lawyerVoice: 'ash',
+    judgeVoice: 'echo',
   },
   3: {
     level: 3,
@@ -43,8 +43,8 @@ export const LEVEL_CONFIGS: Record<DifficultyTier, LevelConfig> = {
     objectionAggressiveness: 'high',
     witnessConsistencyStrictness: 'high',
     retrievalEnabled: false,
-    lawyerVoice: 'verse',
-    judgeVoice: 'sage',
+    lawyerVoice: 'ash',
+    judgeVoice: 'echo',
   },
   4: {
     level: 4,
@@ -58,8 +58,8 @@ export const LEVEL_CONFIGS: Record<DifficultyTier, LevelConfig> = {
     objectionAggressiveness: 'high',
     witnessConsistencyStrictness: 'high',
     retrievalEnabled: false,
-    lawyerVoice: 'verse',
-    judgeVoice: 'ballad',
+    lawyerVoice: 'ash',
+    judgeVoice: 'echo',
   },
   5: {
     level: 5,
@@ -73,8 +73,8 @@ export const LEVEL_CONFIGS: Record<DifficultyTier, LevelConfig> = {
     objectionAggressiveness: 'extreme',
     witnessConsistencyStrictness: 'high',
     retrievalEnabled: true,
-    lawyerVoice: 'verse',
-    judgeVoice: 'ballad',
+    lawyerVoice: 'ash',
+    judgeVoice: 'echo',
   },
 }
 
