@@ -243,28 +243,76 @@ export async function submitPlayerTurn(sessionId: string, content: string): Prom
   return readJson<ApiSession>(response)
 }
 
-export async function requestFinalVerdict(sessionId: string): Promise<ApiSession> {
+export async function streamFinalVerdict(
+  sessionId: string,
+  onToken?: (partialContent: string) => void,
+  onAudioChunk?: (base64Chunk: string) => void,
+): Promise<ApiSession> {
   const response = await fetch(`${API_BASE_URL}/api/agent`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ sessionId, action: 'final_verdict' }),
   })
 
-  const payload = await readJson<{ session: ApiSession }>(response)
-  return payload.session
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => ({}))
+    const errorMessage = typeof errorBody.error === 'string'
+      ? errorBody.error
+      : `Request failed with status ${response.status}.`
+    throw new Error(errorMessage)
+  }
+
+  let streamed = ''
+  let finalSession: ApiSession | null = null
+
+  for await (const event of readSSEStream(response)) {
+    if (event.token) {
+      streamed += event.token
+      onToken?.(streamed)
+    }
+    if (event.audio) {
+      onAudioChunk?.(event.audio)
+    }
+    if (event.done) {
+      if (event.error) throw new Error(event.error)
+      const payload = event as typeof event & { session?: ApiSession }
+      finalSession = payload.session ?? null
+      break
+    }
+  }
+
+  if (!finalSession) {
+    throw new Error('Verdict stream completed without a final session payload.')
+  }
+
+  return finalSession
+}
+
+export async function transcribeAudio(blob: Blob): Promise<string> {
+  const arrayBuffer = await blob.arrayBuffer()
+  const bytes = new Uint8Array(arrayBuffer)
+  let binary = ''
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i])
+  const base64 = btoa(binary)
+
+  const response = await fetch(`${API_BASE_URL}/api/speech/transcribe`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ audio: base64, mimeType: blob.type }),
+  })
+
+  const data = await readJson<{ text: string }>(response)
+  return data.text
 }
 
 export async function streamLawyerTurn(
   sessionId: string,
   onToken: (partialContent: string) => void,
+  onAudioChunk?: (base64Chunk: string) => void,
 ): Promise<ApiSession> {
   const response = await fetch(`${API_BASE_URL}/api/agent`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ sessionId, action: 'lawyer_turn' }),
   })
 
@@ -284,12 +332,11 @@ export async function streamLawyerTurn(
       streamed += event.token
       onToken(streamed)
     }
-
+    if (event.audio) {
+      onAudioChunk?.(event.audio)
+    }
     if (event.done) {
-      if (event.error) {
-        throw new Error(event.error)
-      }
-
+      if (event.error) throw new Error(event.error)
       const payload = event as typeof event & { session?: ApiSession }
       finalSession = payload.session ?? null
       break

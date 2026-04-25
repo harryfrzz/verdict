@@ -2,6 +2,8 @@ export interface StreamEvent {
   token: string
   done: boolean
   fullContent?: string
+  content?: string
+  audio?: string
   error?: string
   session?: unknown
 }
