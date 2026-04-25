@@ -3,14 +3,14 @@ import type { Request, Response } from 'express'
 import { SYSTEM_PROMPTS } from '../../src/lib/agents/prompts.js'
 import { AGENT_CONFIGS } from '../llm/config.js'
 import { streamAgentTurn, callAgentOnce } from '../llm/client.js'
-import type { CaseFile, AgentId } from '../../src/lib/agents/types.js'
+import type { LegacyCaseFile, AgentId } from '../../src/lib/agents/types.js'
 
 const router = Router()
 
 const VALID_AGENT_IDS = new Set<AgentId>(['arbiter', 'accuse', 'advocate', 'chronicle', 'ethos'])
 const MAX_QUESTION_LENGTH = 2000
 
-function isValidCaseFile(cf: unknown): cf is CaseFile {
+function isValidCaseFile(cf: unknown): cf is LegacyCaseFile {
   if (!cf || typeof cf !== 'object') return false
   const c = cf as Record<string, unknown>
   return (
@@ -21,7 +21,7 @@ function isValidCaseFile(cf: unknown): cf is CaseFile {
   )
 }
 
-function buildUserMessage(caseFile: CaseFile): string {
+function buildUserMessage(caseFile: LegacyCaseFile): string {
   const transcriptText = caseFile.transcript
     .filter(t => t.type === 'statement')
     .map(t => `[${t.agentId.toUpperCase()}]: ${t.content}`)

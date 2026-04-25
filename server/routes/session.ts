@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import type { Request, Response } from 'express'
 import { randomUUID } from 'crypto'
-import type { CaseFile, Plea } from '../../src/lib/agents/types.js'
+import type { LegacyCaseFile, Plea } from '../../src/lib/agents/types.js'
 
 const router = Router()
 
@@ -38,7 +38,7 @@ router.post('/', (req: Request, res: Response) => {
   const sessionId = randomUUID()
   const category = detectCategory(question)
 
-  const caseFile: CaseFile = {
+  const caseFile: LegacyCaseFile = {
     question: question.trim(),
     category,
     plea: plea ? (plea as Plea) : null,

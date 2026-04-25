@@ -250,8 +250,6 @@ function App() {
 
   useEffect(() => {
     if (!courtOpen) {
-      setActiveIndex(-1)
-      setJudgeControlsOpen(false)
       return
     }
 
