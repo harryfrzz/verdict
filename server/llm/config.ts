@@ -31,3 +31,8 @@ export function getCourtActorConfig(level: DifficultyTier, actor: AIActor): Agen
     maxOutputTokens: levelConfig.maxOutputTokens,
   }
 }
+
+export function getActorVoice(level: DifficultyTier, actor: AIActor): string {
+  const levelConfig = getLevelConfig(level)
+  return actor === 'lawyer' ? levelConfig.lawyerVoice : levelConfig.judgeVoice
+}
