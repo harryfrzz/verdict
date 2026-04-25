@@ -2,13 +2,15 @@ import { startTransition, useEffect, useMemo, useRef, useState } from 'react'
 import CharacterSetup, { type SetupCharacter } from './components/roleplay/CharacterSetup'
 import CourtTurn from './components/roleplay/CourtTurn'
 import LandingPage, { type CaseDifficultyRange, type CaseLevel } from './components/roleplay/LandingPage'
+import { createAudioStreamPlayer, type AudioStreamPlayer } from './lib/audio/player'
 import type { ApiSession } from './lib/session/api'
 import {
   createBackendSession,
   listBackendCases,
-  requestFinalVerdict,
+  streamFinalVerdict,
   streamLawyerTurn,
   submitPlayerTurn as submitPlayerTurnRequest,
+  transcribeAudio,
 } from './lib/session/api'
 import { parseVerdictContent } from './lib/session/verdict'
 
@@ -119,6 +121,8 @@ function App() {
   const [isWorking, setIsWorking] = useState(false)
   const [judgeControlsOpen, setJudgeControlsOpen] = useState(false)
   const judgeControlsRef = useRef<HTMLDivElement | null>(null)
+  const lawyerAudioRef = useRef<AudioStreamPlayer | null>(null)
+  const judgeAudioRef = useRef<AudioStreamPlayer | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -258,8 +262,18 @@ function App() {
     setStreamingLawyerText('')
     setPendingJudgeText(null)
 
+    judgeAudioRef.current?.stop()
+    judgeAudioRef.current = null
+    lawyerAudioRef.current?.stop()
+    lawyerAudioRef.current = createAudioStreamPlayer()
+    const lawyerPlayer = lawyerAudioRef.current
+
     try {
-      const updatedSession = await streamLawyerTurn(sessionId, setStreamingLawyerText)
+      const updatedSession = await streamLawyerTurn(
+        sessionId,
+        setStreamingLawyerText,
+        (chunk) => lawyerPlayer.enqueue(chunk),
+      )
       startTransition(() => {
         setSession(updatedSession)
       })
@@ -320,8 +334,16 @@ function App() {
       })
 
       if (updatedSession.phase === 'deliberation' || updatedSession.nextSpeaker === 'judge') {
-        setPendingJudgeText('The judge is reviewing the record and preparing a verdict...')
-        const verdictSession = await requestFinalVerdict(updatedSession.sessionId)
+        lawyerAudioRef.current?.stop()
+        lawyerAudioRef.current = null
+        judgeAudioRef.current?.stop()
+        judgeAudioRef.current = createAudioStreamPlayer()
+        const judgePlayer = judgeAudioRef.current
+        const verdictSession = await streamFinalVerdict(
+          updatedSession.sessionId,
+          setPendingJudgeText,
+          (chunk) => judgePlayer.enqueue(chunk),
+        )
         startTransition(() => {
           setSession(verdictSession)
         })
@@ -344,10 +366,18 @@ function App() {
 
     setIsWorking(true)
     setLoadingError(null)
-    setPendingJudgeText('The judge is reviewing the record and preparing a verdict...')
+    lawyerAudioRef.current?.stop()
+    lawyerAudioRef.current = null
+    judgeAudioRef.current?.stop()
+    judgeAudioRef.current = createAudioStreamPlayer()
+    const judgePlayer = judgeAudioRef.current
 
     try {
-      const verdictSession = await requestFinalVerdict(session.sessionId)
+      const verdictSession = await streamFinalVerdict(
+        session.sessionId,
+        setPendingJudgeText,
+        (chunk) => judgePlayer.enqueue(chunk),
+      )
       startTransition(() => {
         setSession(verdictSession)
       })
@@ -378,6 +408,10 @@ function App() {
   }
 
   function resetCourt() {
+    lawyerAudioRef.current?.stop()
+    lawyerAudioRef.current = null
+    judgeAudioRef.current?.stop()
+    judgeAudioRef.current = null
     setCourtOpen(false)
     setSession(null)
     setStreamingLawyerText('')
@@ -449,6 +483,7 @@ function App() {
                 onUserSubmit={() => {
                   void handlePlayerSubmit()
                 }}
+                onTranscribeAudio={transcribeAudio}
                 onSecondaryAction={() => {
                   if (session?.awaitingPlayerInput && !playerTurnUnlocked) {
                     setPlayerTurnUnlocked(true)

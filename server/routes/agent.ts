@@ -7,8 +7,9 @@ import {
   judgeSystemPrompt,
   lawyerSystemPrompt,
 } from '../../src/lib/agents/prompts.js'
-import { getCourtActorConfig } from '../llm/config.js'
-import { callAgentOnce, streamAgentTurn } from '../llm/client.js'
+import { getActorVoice, getCourtActorConfig } from '../llm/config.js'
+import { callAgentOnce } from '../llm/client.js'
+import { streamRealtimeTurn } from '../llm/realtime.js'
 import { recordFinalVerdict, recordJudgeRuling, submitAgentTurn } from '../../src/lib/session/index.js'
 import { sessionStore } from '../session/store.js'
 
@@ -35,6 +36,14 @@ function getSession(sessionId: unknown, res: Response) {
   return session
 }
 
+function sseHeaders(res: Response) {
+  res.setHeader('Content-Type', 'text/event-stream')
+  res.setHeader('Cache-Control', 'no-cache')
+  res.setHeader('Connection', 'keep-alive')
+  res.setHeader('X-Accel-Buffering', 'no')
+  res.flushHeaders()
+}
+
 function buildAutoLossVerdict(session: NonNullable<ReturnType<typeof getSession>>): string {
   return [
     'OUTCOME: Loss for player.',
@@ -59,34 +68,31 @@ router.post('/', async (req: Request, res: Response) => {
   }
 
   const session = getSession(sessionId, res)
-  if (!session) {
-    return
-  }
+  if (!session) return
 
   if (action === 'lawyer_turn') {
-    const config = getCourtActorConfig(session.caseFile.level, 'lawyer')
     const systemPrompt = lawyerSystemPrompt(session.aiRole)
     const userMessage = buildLawyerUserMessage(session)
+    const voice = getActorVoice(session.caseFile.level, 'lawyer')
 
-    res.setHeader('Content-Type', 'text/event-stream')
-    res.setHeader('Cache-Control', 'no-cache')
-    res.setHeader('Connection', 'keep-alive')
-    res.setHeader('X-Accel-Buffering', 'no')
-    res.flushHeaders()
-
+    sseHeaders(res)
     let fullContent = ''
 
     try {
-      for await (const token of streamAgentTurn(systemPrompt, userMessage, config)) {
-        fullContent += token
-        res.write(`data: ${JSON.stringify({ token, done: false })}\n\n`)
+      for await (const chunk of streamRealtimeTurn(systemPrompt, userMessage, voice)) {
+        if (chunk.type === 'text') {
+          fullContent += chunk.delta
+          res.write(`data: ${JSON.stringify({ token: chunk.delta, done: false })}\n\n`)
+        } else {
+          res.write(`data: ${JSON.stringify({ audio: chunk.chunk, done: false })}\n\n`)
+        }
       }
 
       const result = submitAgentTurn(session, 'lawyer', fullContent)
       sessionStore.set(result.session)
       res.write(`data: ${JSON.stringify({ token: '', done: true, fullContent, session: result.session })}\n\n`)
     } catch (error) {
-      console.error('[LAWYER] stream failed:', error)
+      console.error('[LAWYER] realtime stream failed:', error)
       res.write(`data: ${JSON.stringify({ token: '', done: true, error: 'Stream failed', fullContent })}\n\n`)
     } finally {
       res.end()
@@ -101,10 +107,7 @@ router.post('/', async (req: Request, res: Response) => {
       const content = await callAgentOnce(
         judgeSystemPrompt('ruling'),
         buildJudgeRulingUserMessage(session),
-        {
-          ...config,
-          streaming: false,
-        },
+        { ...config, streaming: false },
       )
 
       const resolvedOutcome = outcome === 'sustained' || outcome === 'overruled' || outcome === 'reserved'
@@ -121,31 +124,45 @@ router.post('/', async (req: Request, res: Response) => {
     return
   }
 
-  try {
-    if (session.playerTurnsTaken === 0) {
-      const content = buildAutoLossVerdict(session)
-      const result = recordFinalVerdict(session, content)
-      sessionStore.set(result.session)
-      res.json({ content, session: result.session })
-      return
-    }
+  // final_verdict — streamed via SSE with Realtime audio
+  sseHeaders(res)
 
-    const config = getCourtActorConfig(session.caseFile.level, 'judge')
-    const content = await callAgentOnce(
-      judgeSystemPrompt('verdict'),
-      buildFinalVerdictUserMessage(session),
-      {
-        ...config,
-        streaming: false,
-      },
-    )
-
+  if (session.playerTurnsTaken === 0) {
+    const content = buildAutoLossVerdict(session)
     const result = recordFinalVerdict(session, content)
     sessionStore.set(result.session)
-    res.json({ content, session: result.session })
+    // Emit each word as a token so the frontend can stream the text
+    for (const word of content.split(' ')) {
+      res.write(`data: ${JSON.stringify({ token: word + ' ', done: false })}\n\n`)
+    }
+    res.write(`data: ${JSON.stringify({ token: '', done: true, content, session: result.session })}\n\n`)
+    res.end()
+    return
+  }
+
+  const systemPrompt = judgeSystemPrompt('verdict')
+  const userMessage = buildFinalVerdictUserMessage(session)
+  const voice = getActorVoice(session.caseFile.level, 'judge')
+  let fullContent = ''
+
+  try {
+    for await (const chunk of streamRealtimeTurn(systemPrompt, userMessage, voice)) {
+      if (chunk.type === 'text') {
+        fullContent += chunk.delta
+        res.write(`data: ${JSON.stringify({ token: chunk.delta, done: false })}\n\n`)
+      } else {
+        res.write(`data: ${JSON.stringify({ audio: chunk.chunk, done: false })}\n\n`)
+      }
+    }
+
+    const result = recordFinalVerdict(session, fullContent)
+    sessionStore.set(result.session)
+    res.write(`data: ${JSON.stringify({ token: '', done: true, content: fullContent, session: result.session })}\n\n`)
   } catch (error) {
-    console.error('[JUDGE] verdict failed:', error)
-    res.status(500).json({ error: 'Final verdict failed.' })
+    console.error('[JUDGE] verdict realtime failed:', error)
+    res.write(`data: ${JSON.stringify({ token: '', done: true, error: 'Verdict stream failed', fullContent })}\n\n`)
+  } finally {
+    res.end()
   }
 })
 
