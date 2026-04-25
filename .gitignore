@@ -31,8 +31,6 @@ dist-ssr
 .env.local
 .env.*.local
 
-# Docs and project notes
-docs/
 
 # CLAUDE.md
 CLAUDE.md

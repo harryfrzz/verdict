@@ -1,144 +1,145 @@
 # Implementation Plan — Verdict
 
-**Version:** 1.0  
-**Last Updated:** 2025-04-25  
-**Target:** 6-hour hackathon build
+**Version:** 2.0
+**Last Updated:** 2026-04-25
+**Target:** pivot plan, docs-only baseline
 
-This document describes the exact build order, what to scaffold first, and what to defer. Follow this sequence — it is ordered so that you always have a working demo at each checkpoint.
+This plan reflects the new human-vs-AI courtroom structure. The major implementation change is in Hour 3: the product now needs a turn-based player input system, not an auto-running AI-only session loop.
 
----
+## Hour 0 — Realign The Data Model
 
-## Hour 0 — Project Bootstrap (15 min)
-
-```bash
-npm create vite@latest verdict -- --template react-ts
-cd verdict
-npm install
-npm install zustand framer-motion express cors
-```
-
-Create `.env` files for both client and server with all required env vars.
-
-Create the full directory structure from `ARCHITECTURE.md` as empty files (touch). This lets the AI coding assistant understand the intended structure from the start.
-
-Create `src/lib/agents/types.ts` first — every other file imports from it.
-
----
-
-## Hour 1 — Core Types + Agent Prompts + LLM Client
-
-**Priority: get one agent turn working end-to-end before building any UI.**
+Priority: stop designing around open-ended questions and move to structured case files.
 
 Order:
-1. `src/lib/agents/types.ts` — all types defined
-2. `src/lib/agents/prompts.ts` — all 5 system prompts + Clerk function
-3. `server/llm/client.ts` — provider-agnostic streaming caller
-4. `src/lib/llm/stream.ts` — SSE token parser
-5. `server/routes/agent.ts` — single agent turn API endpoint with SSE
 
-Test checkpoint: `curl` the `/api/agent` endpoint with a hardcoded ACCUSE turn. Verify tokens stream back correctly before touching the frontend.
+1. Define the `CaseFile` schema and supporting `Witness`, `Evidence`, and `DifficultyConfig` types.
+2. Create a `casefiles/` directory and add a few authored sample cases.
+3. Create a levels config file mapping difficulty tiers to model strings and reasoning presets.
+4. Remove the plea-screen assumption from planning and replace it with role selection.
 
----
+Checkpoint:
 
-## Hour 2 — Session Logic + State
+- One sample case file validates against the new schema.
+- Levels are represented in structured config.
 
-Order:
-1. `src/lib/session/store.ts` — full Zustand store
-2. `src/lib/session/caseFile.ts` — CaseFile builder
-3. `src/lib/agents/orchestrator.ts` — turn queue + phase advancement
-4. `server/routes/session.ts` — session init endpoint
+## Hour 1 — Prompt Layer And LLM Routing
 
-Test checkpoint: call `/api/session`, then manually trigger 2 sequential `/api/agent` calls using the returned sessionId. Verify the second agent receives the first agent's turn in its transcript.
-
-## Hour 3 — Docket Screen + Plea Screen + Session Screen (no character figures)
-
-Build the UI in functional-first order — get the courtroom working with placeholder boxes for characters.
+Priority: reduce the prompt system to the actual runtime entities.
 
 Order:
-1. `src/pages/DocketPage.tsx` — Docket screen: input, preloaded cases, CTA button
-2. `src/pages/PleaPage.tsx` — plea selection screen with guilty / not guilty choice
-3. `src/components/transcript/TranscriptFeed.tsx` + `TranscriptEntry.tsx` + `ClerkAnnouncement.tsx`
-4. `src/components/transcript/StreamingText.tsx` — word-by-word fade render
-5. `src/pages/SessionPage.tsx` — session screen with transcript panel wired to store
-6. Wire the session page to call the backend `/api/session`, then run the orchestrator loop
 
-Test checkpoint: submit a question from the Docket, choose a plea, then watch the transcript fill with streaming agent turns through all phases. Characters are just colored placeholder boxes at this point — that is fine.
+1. Replace the five-agent mental model with prompts for:
+   - opposing lawyer
+   - judge
+   - witness
+2. Update server LLM routing assumptions so calls can target those roles.
+3. Keep the Clerk as a deterministic formatting layer.
+4. Make sure prompts accept injected case-file sections rather than a generic question.
 
----
+Checkpoint:
 
-## Hour 4 — Verdict Screen + Deliberation Handoff
+- A single lawyer turn can be generated from a case file and player role.
+- A single witness turn can be generated from witness data only.
 
-Order:
-1. `src/pages/VerdictPage.tsx` — verdict reveal screen
-2. `src/components/verdict/VerdictCard.tsx` — ruling + reasoning + dissent render
-3. `src/components/verdict/ScoringPanel.tsx` — slide-up stats panel
-4. `src/components/ui/ScalesOfJustice.tsx` — tipping animation
-5. Add non-streamed ARBITER deliberation state before verdict reveal
+## Hour 2 — Session State And Orchestrator
 
-Test checkpoint: run a full session end-to-end from Docket → Session → Verdict. Verify the verdict parses correctly into ruling / reasoning / dissent.
-
----
-
-## Hour 5 — Character Figures + Scene Polish
-
-This hour is where the visual identity comes together. Drop in the character SVG assets from the design output.
+Priority: build the new control flow before polishing UI.
 
 Order:
-1. Add character SVG assets to `assets/characters/`
-2. `src/components/courtroom/CharacterFigure.tsx` — pose switching with Framer Motion
-3. `src/components/courtroom/GlowHalo.tsx` — speaking indicator
-4. `src/components/courtroom/Nameplate.tsx` — name tag below figure
-5. Add accused posture variants for `guilty` and `not_guilty`
-6. `src/components/courtroom/Scene.tsx` — full courtroom layout with background + all 5 characters plus accused in the dock
-7. Wire `activeSpeaker` from store to Scene — speaking character animates on turn change
-8. `src/components/ui/TensionMeter.tsx` + `src/components/ui/CaseFileDrawer.tsx`
-9. `src/components/ui/PhaseIndicator.tsx` in the top bar
 
-Test checkpoint: watch a full session. Characters should switch pose in sync with the streaming transcript. Tension meter should rise across turns.
+1. Redefine session state around:
+   - selected case
+   - selected role
+   - transcript
+   - current phase
+   - awaiting player input
+2. Update the orchestrator to alternate between AI turns and player turns.
+3. Add objection handling and judge ruling hooks.
+4. Add a verdict assembly path that packages transcript, case file, and rubric for scoring.
 
----
+Checkpoint:
 
-## Hour 6 — Demo Prep + Polish
+- The orchestrator can pause and resume based on player submissions.
+- The session no longer assumes an auto-advancing full AI loop.
+
+## Hour 3 — Case Study Screen + Turn-Based Input System
+
+This hour changes completely from the previous plan.
+
+Priority: build the actual player interaction surface.
 
 Order:
-1. Pre-load 2 demo cases and verify they produce compelling verdicts
-2. Add the "Share verdict" card — static preview is fine, shareable URL is a bonus
-3. Fix any streaming edge cases (empty turns, stuck states)
-4. Add the mock mode toggle (hardcoded replay) as a safety net
-5. Test on a projected screen at 1440px — verify font sizes read at distance
-6. Deploy the Vite frontend and Node API, or proxy both behind one domain
 
----
+1. Build level selection.
+2. Build case browser for the chosen level.
+3. Build case study screen showing:
+   - summary
+   - report
+   - witnesses
+   - evidence
+   - objectives
+4. Build role selection for `Prosecution` or `Defense`.
+5. Build the courtroom session screen with:
+   - transcript
+   - text input box for player turns
+   - mic button for voice capture
+   - submit flow that advances the court only after player action
+6. Keep streaming architecture for AI turns exactly where it already makes sense.
 
-## Deferred to Post-Hackathon
+Checkpoint:
 
-- Mobile layout
-- Session history / user accounts
-- Audio — gavel sound, ambient courtroom noise
-- Jury mechanic — audience voting on verdict
-- Custom agent configuration by user
-- Export transcript as PDF
-- Shareable URL (vs static card image)
+- A player can read a case, choose a role, submit an opening statement, and see the AI respond.
 
----
+## Hour 4 — Voice Transcription And Witness Flow
 
-## Demo Script (3 minutes)
+Order:
 
-**0:00 — Setup (30s)**  
-"Verdict is an AI courtroom that argues both sides of any moral question. Here's how it works."  
-Open the Docket. Point at the three pre-loaded cases. "I'll use the Oppenheimer question."
+1. Add `/api/voice` transcription route.
+2. Add client-side mic capture and audio upload.
+3. Show transcribed text for player review before submission.
+4. Add witness examination and cross-examination flow using authored witness profiles.
+5. Add objection UI and judge ruling path.
 
-**0:30 — Session start (90s)**  
-Click "Open the court." On the plea screen, choose guilty or not guilty. Then point at the courtroom lighting up and character figures appearing. Let ACCUSE and ADVOCATE deliver their opening statements while explaining what's happening: "Prosecution argues guilt, defense argues mitigating context — both powered by separate AI agents with locked roles."
+Checkpoint:
 
-When a witness is called: "Now the prosecution calls Chronicle — the factual witness. Watch ADVOCATE cross-examine."
+- Player can speak an argument and submit the transcript as their turn.
+- Witnesses remain consistent with their statements.
 
-**2:00 — Verdict (60s)**  
-"Now ARBITER — the judge — deliberates." Let the verdict reveal happen without talking over it. Let the text render.
+## Hour 5 — Scoring Engine And Verdict
 
-Point at the dissenting opinion: "This is the strongest counter-argument to the verdict, written by the same judge."
+Order:
 
-Show the scoring panel tipping the scales. "This is Verdict."
+1. Add `lib/scoring/` for rubric logic.
+2. Define judge scoring categories.
+3. Generate verdict, win/loss, and score breakdown.
+4. Add targeted player feedback:
+   - what worked
+   - where ground was lost
+   - what evidence was missed
+   - what the AI exploited
 
-**2:45 — Close**  
-"Built in 6 hours. Every agent sees every prior statement — that's why cross-examination actually works."
+Checkpoint:
+
+- End-to-end session returns a defensible win/loss outcome with useful feedback.
+
+## Hour 6 — Replayability And Demo Polish
+
+Order:
+
+1. Add multiple cases across at least two levels.
+2. Tune difficulty so level differences are obvious.
+3. Improve post-verdict retry and level-up flows.
+4. Prepare one easy demo case and one difficult demo case.
+5. Verify both text and voice play paths.
+
+Checkpoint:
+
+- The product clearly reads as a game with replay value, not a passive simulation.
+
+## Deferred
+
+- Persistent progression systems
+- Multiplayer or spectator modes
+- Broad retrieval for all levels
+- User-authored case creation
+- Mobile-first polish

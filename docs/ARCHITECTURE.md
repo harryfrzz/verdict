@@ -1,320 +1,322 @@
 # Architecture Document — Verdict
 
-**Version:** 1.0  
-**Status:** Draft  
-**Last Updated:** 2025-04-25
-
----
+**Version:** 2.0
+**Status:** Draft
+**Last Updated:** 2026-04-25
 
 ## 1. System Overview
 
-Verdict is a single-page web application with no persistent database. The frontend is built with Vite + React, and all AI agent calls are made through a lightweight server-side API service (to protect API keys). Session state lives entirely in memory on the client for the duration of a session.
+Verdict is a single-page web application with a server-side orchestration layer for AI turns, scoring, and voice transcription. The core architectural change is that the orchestrator no longer auto-generates every turn. It must manage an alternating human/AI session loop and pause for player submissions.
 
-```
+```text
 Browser (React SPA via Vite)
-    ↕ HTTP / SSE streaming
-API Service (server-side, thin)
+    ↕ HTTP / SSE streaming / audio upload
+API Service (server-side orchestration)
     ↕ HTTP
-LLM Provider (OpenAI / Anthropic / configurable)
+LLM Provider(s)
 ```
 
----
+## 2. Core Architectural Shift
 
-## 2. Tech Stack
+### Old Direction
 
-| Layer | Choice | Rationale |
-|---|---|---|
-| Frontend | Vite + React | Fast SPA development, simple client bundle, framework-light |
-| Styling | Tailwind CSS | Utility-first, fast iteration |
-| Animations | Framer Motion | Character pose transitions, verdict reveal |
-| State | Zustand | Lightweight, no boilerplate |
-| Backend API | Node.js + Express | Thin server for session init and SSE agent streaming |
-| LLM calls | Provider-agnostic fetch | Swap between OpenAI / Anthropic via env var |
-| Streaming | Server-Sent Events (SSE) | Native browser support, no websocket overhead |
-| Deployment | Static frontend + Node host | Deploy client and API separately or behind one domain |
+- one user prompt
+- five AI agents
+- orchestrator auto-advanced the full courtroom
 
----
+### New Direction
 
-## 3. Directory Structure
+- authored case files instead of open-ended prompts
+- one human player, one AI lawyer, one AI judge
+- AI witnesses generated from case data when called
+- orchestrator streams AI turns but waits for player input every other turn
 
-```
+This is the key product architecture change. The runtime is no longer a self-playing simulation. It is a turn-based game loop with explicit player action.
+
+## 3. Recommended Repo Structure
+
+```text
 verdict/
+├── docs/
+│   ├── PRD.md
+│   ├── ARCHITECTURE.md
+│   ├── AGENT_PROMPTS.md
+│   ├── AGENTS.md
+│   └── IMPLEMENTATION_PLAN.md
+├── casefiles/
+│   ├── level-1/
+│   ├── level-2/
+│   ├── level-3/
+│   ├── level-4/
+│   └── level-5/
+├── config/
+│   └── levels.ts
 ├── src/
-│   ├── main.tsx                  # Vite entrypoint
-│   ├── App.tsx                   # App shell + route mounting
-│   ├── pages/
-│   │   ├── DocketPage.tsx        # Docket screen (case entry)
-│   │   ├── PleaPage.tsx          # Plea selection before court opens
-│   │   ├── SessionPage.tsx       # Courtroom live session screen
-│   │   └── VerdictPage.tsx       # Verdict reveal + scoring screen
 │   ├── components/
-│   │   ├── courtroom/
-│   │   │   ├── Scene.tsx         # Full courtroom background + character layout
-│   │   │   ├── CharacterFigure.tsx
-│   │   │   ├── Nameplate.tsx
-│   │   │   └── GlowHalo.tsx
-│   │   ├── transcript/
-│   │   │   ├── TranscriptFeed.tsx
-│   │   │   ├── TranscriptEntry.tsx
-│   │   │   ├── ClerkAnnouncement.tsx
-│   │   │   └── StreamingText.tsx
-│   │   ├── ui/
-│   │   │   ├── TensionMeter.tsx
-│   │   │   ├── CaseFileDrawer.tsx
-│   │   │   ├── PhaseIndicator.tsx
-│   │   │   └── ScalesOfJustice.tsx
-│   │   └── verdict/
-│   │       ├── VerdictCard.tsx
-│   │       └── ScoringPanel.tsx
-│   └── lib/
-│       ├── agents/
-│       │   ├── prompts.ts        # All 5 agent system prompts
-│       │   ├── orchestrator.ts   # Turn sequencing logic
-│       │   └── types.ts          # Agent, Turn, Phase, Plea, Score types
-│       ├── session/
-│       │   ├── store.ts          # Zustand session state
-│       │   └── caseFile.ts       # Shared context object builder
-│       └── llm/
-│           └── stream.ts         # SSE stream parser
-├── server/
-│   ├── index.ts                  # Express server bootstrap
-│   ├── routes/
-│   │   ├── session.ts            # Session initialisation
-│   │   └── agent.ts              # Single agent turn — streams response
-│   └── llm/
-│       └── client.ts             # Provider-agnostic LLM caller
-├── assets/
-│   └── characters/               # SVG/PNG character illustrations per pose
-│       ├── arbiter-idle.svg
-│       ├── arbiter-speaking.svg
-│       ├── accuse-idle.svg
-│       ├── accuse-speaking.svg
-│       └── ...
-└── public/
-    └── courtroom-bg.svg          # Courtroom scene illustration
+│   ├── lib/
+│   │   ├── agents/
+│   │   ├── casefiles/
+│   │   ├── scoring/
+│   │   └── session/
+│   └── ...
+└── server/
+    ├── routes/
+    │   ├── session.ts
+    │   ├── agent.ts
+    │   └── voice.ts
+    └── llm/
 ```
 
----
+## 4. Core Domain Models
 
-## 4. Agent System
-
-### 4.1 Agent Definition
-
-Each agent is defined as a static object in `src/lib/agents/prompts.ts`:
-
-```typescript
-interface Agent {
-  id: AgentId               // 'arbiter' | 'accuse' | 'advocate' | 'chronicle' | 'ethos'
-  role: string              // Display role label
-  systemPrompt: string      // Full locked system prompt
-  color: string             // Role color hex for UI
-  speakingPhases: Phase[]   // Which phases this agent may speak in
-}
-```
-
-### 4.2 Shared Context — The Case File
-
-Every agent call receives the same case file object appended to their context:
+### 4.1 Case File Schema
 
 ```typescript
 interface CaseFile {
-  question: string          // Original user question
-  category: string          // Auto-detected topic category
-  plea: Plea               // User-selected plea for accused posture
-  transcript: Turn[]        // All prior turns in order
-  phase: Phase              // Current courtroom phase
-  round: number             // Turn number within phase
-}
-```
-
-The transcript is the agent memory. Every agent sees every prior statement before generating their own. This is what makes cross-examination coherent — ADVOCATE can reference what CHRONICLE said because it's in the transcript they receive.
-
-### 4.3 Turn Object
-
-```typescript
-interface Turn {
-  agentId: AgentId
-  phase: Phase
-  turnNumber: number
-  content: string           // Full text of the statement
-  timestamp: number
-  type: 'statement' | 'clerk'
-}
-```
-
-### 4.4 Phase Sequence
-
-```typescript
-type Phase =
-  | 'plea'              // User selects guilty / not guilty before court opens
-  | 'opening'           // ACCUSE → ADVOCATE
-  | 'examination'       // Direct examination of witnesses (2 turns each)
-  | 'cross'             // Cross-examination by opposing counsel (2 turns each)
-  | 'closing'           // ACCUSE → ADVOCATE closing arguments
-  | 'deliberation'      // ARBITER only
-  | 'verdict'           // ARBITER delivers ruling
-```
-
-The orchestrator in `src/lib/agents/orchestrator.ts` holds the turn queue and advances the phase automatically after each turn completes.
-
----
-
-## 5. API Endpoints
-
-### POST /api/session
-
-Initialises a new session. Validates the question, assigns a session ID, returns initial case file.
-
-**Request:**
-```json
-{ "question": "Was Oppenheimer morally responsible for Hiroshima?" }
-```
-
-**Response:**
-```json
-{
-  "sessionId": "uuid",
-  "category": "Ethics · History",
-  "plea": "not_guilty",
-  "caseFile": { ... }
-}
-```
-
-### POST /api/agent
-
-Triggers a single agent turn. Live courtroom turns stream token-by-token via SSE. ARBITER deliberation uses the same route in non-streaming mode and returns the full deliberation payload at once.
-
-**Request:**
-```json
-{
-  "sessionId": "uuid",
-  "agentId": "accuse",
-  "phase": "opening",
-  "caseFile": { ... }
-}
-```
-
-**Streaming response:** `text/event-stream`  
-Each event: `data: {"token": "The", "done": false}`  
-Final event: `data: {"token": "", "done": true, "fullContent": "..."}`
-
-**Deliberation response:** standard JSON with the full content returned in one payload
-
-## 6. State Management
-
-All session state lives in a single Zustand store (`src/lib/session/store.ts`):
-
-```typescript
-interface SessionStore {
-  // Session identity
-  sessionId: string | null
-  question: string
+  id: string
+  title: string
+  level: 1 | 2 | 3 | 4 | 5
   category: string
-  plea: Plea | null
-
-  // Courtroom state
-  phase: Phase
-  turnNumber: number
-  activeSpeaker: AgentId | null
-  accusedPosture: 'guilty' | 'not_guilty'
-  transcript: Turn[]
-  caseFile: CaseFile
-
-  // UI state
-  isStreaming: boolean
-  streamingAgentId: AgentId | null
-  streamingBuffer: string
-  tensionLevel: number      // 0-100, drives TensionMeter
-
-  // Verdict
-  verdict: VerdictResult | null
-  scores: AgentScore[]
-
-  // Actions
-  addTurn: (turn: Turn) => void
-  setActiveSpeaker: (id: AgentId | null) => void
-  setPlea: (plea: Plea) => void
-  appendStreamToken: (token: string) => void
-  advancePhase: () => void
-  setVerdict: (result: VerdictResult) => void
+  summary: string
+  date: string
+  location: string
+  charges: string[]
+  policeReport: string
+  witnesses: Witness[]
+  evidence: Evidence[]
+  prosecutionObjective: string
+  defenseObjective: string
+  priorRulings?: PriorRuling[]
+  difficulty: DifficultyConfig
 }
 ```
 
----
-
-## 7. Streaming Implementation
-
-The frontend calls the backend `/api/agent` endpoint and reads the SSE stream using the native `EventSource` API or `fetch` with `ReadableStream` for all live courtroom turns. Tokens are appended to `streamingBuffer` in the store on each event. `StreamingText.tsx` renders the buffer with a word-by-word fade-in animation (80ms per word).
-
-On stream completion (`done: true`), the full turn is committed to `transcript`, `streamingBuffer` is cleared, and the orchestrator advances to the next speaker.
-
-ARBITER deliberation is the exception: it runs as a single non-streamed server call and is shown in the UI as a short "thinking" state before the verdict reveal begins.
-
----
-
-## 8. LLM Provider Abstraction
-
-`server/llm/client.ts` exposes a single function:
+Supporting types:
 
 ```typescript
-async function* streamAgentTurn(
-  systemPrompt: string,
-  messages: Message[],
-  config: LLMConfig
-): AsyncGenerator<string>
+interface Witness {
+  id: string
+  name: string
+  relationToCase: string
+  statement: string
+  reliabilityNotes?: string
+}
+
+interface Evidence {
+  id: string
+  item: string
+  description: string
+  whereFound: string
+  relevance: string
+}
+
+interface PriorRuling {
+  title: string
+  citation?: string
+  relevance: string
+}
+
+interface DifficultyConfig {
+  level: 1 | 2 | 3 | 4 | 5
+  model: string
+  temperature: number
+  reasoningNotes: string
+}
 ```
 
-`LLMConfig` is populated from environment variables:
+### 4.2 Session State
 
-```
-LLM_PROVIDER=openai         # or 'anthropic'
-LLM_MODEL=gpt-4o            # or 'claude-opus-4-6'
-LLM_API_KEY=sk-...
-LLM_MAX_TOKENS=600
-LLM_TEMPERATURE=0.8
-```
+```typescript
+type Role = 'prosecution' | 'defense'
 
-Switching providers requires only changing env vars — no code changes. Both OpenAI and Anthropic streaming formats are handled inside the client.
+type Phase =
+  | 'case_selection'
+  | 'case_study'
+  | 'role_selection'
+  | 'opening'
+  | 'witness_examination'
+  | 'objection'
+  | 'closing'
+  | 'deliberation'
+  | 'verdict'
 
----
+interface Turn {
+  speaker: 'player' | 'lawyer' | 'judge' | 'witness' | 'clerk'
+  speakerId?: string
+  role?: Role
+  phase: Phase
+  content: string
+  timestamp: number
+  metadata?: Record<string, unknown>
+}
 
-## 9. Character Figure System
-
-Character figures are SVG assets with two states per speaking character: `idle` and `speaking`. `CharacterFigure.tsx` switches between them based on `activeSpeaker` from the store. Framer Motion handles the cross-fade between poses (200ms ease-out). The glow halo is a separate absolutely-positioned element animated with a pulsing opacity loop while the character is speaking.
-
-The accused is a non-speaking figure with at least two posture variants tied to the plea screen selection: `guilty` and `not_guilty`. That posture persists through the courtroom session and is used again during the verdict reveal.
-
----
-
-## 10. Environment Variables
-
-```
-LLM_PROVIDER=               # 'openai' | 'anthropic'
-LLM_MODEL=                  # Model string for chosen provider
-LLM_API_KEY=                # API key — never exposed to client
-LLM_MAX_TOKENS=600          # Max tokens per agent turn
-LLM_TEMPERATURE=0.8         # Controls argument creativity
-
-VITE_API_BASE_URL=          # Backend base URL for client requests
-VITE_APP_URL=               # For share card URL generation
-```
-
----
-
-## 11. Deployment
-
-```bash
-# Install
-npm install
-
-# Development
-npm run dev
-
-# Build
-npm run build
-
-# Start API server
-npm run server
+interface SessionState {
+  sessionId: string
+  caseFile: CaseFile
+  playerRole: Role
+  aiRole: Role
+  phase: Phase
+  transcript: Turn[]
+  awaitingPlayerInput: boolean
+  activeWitnessId: string | null
+  objections: ObjectionRecord[]
+}
 ```
 
-Deploy the Vite frontend as static assets and the Node API as a lightweight server process. They can live on separate hosts or behind a single reverse proxy so the client can call `/api/*` on the same origin.
+## 5. Orchestration Model
+
+### 5.1 Responsibilities
+
+The orchestrator should:
+
+- load the selected case file
+- apply the chosen role pairing
+- determine who speaks next
+- stream AI turns
+- pause for player input
+- route witness questions to the correct witness prompt
+- route objections to the judge
+- assemble the final deliberation package for scoring
+
+### 5.2 Important Change
+
+The orchestrator must not auto-play the player side. It must wait for a submitted text argument or a voice transcript before advancing the session.
+
+### 5.3 Trigger Model
+
+- AI turn: server-triggered and streamed
+- Player turn: client-submitted and then committed to transcript
+- Witness turn: AI-generated only when a witness is being questioned
+- Judge ruling: AI-generated on objection or final verdict
+
+## 6. Case File Injection Rules
+
+Every AI call should receive only the context needed for that role.
+
+### 6.1 AI Lawyer Receives
+
+- full case summary
+- date, location, charges
+- prosecution and defense objectives
+- evidence list
+- relevant witness statements
+- transcript so far
+- player role
+- current phase
+- level difficulty config
+
+### 6.2 Witness Receives
+
+- witness identity
+- witness statement
+- directly relevant evidence
+- narrow transcript slice if needed
+- current question
+- instruction to remain consistent with the authored statement
+
+### 6.3 Judge Receives
+
+- full case file
+- full transcript
+- all objections and rulings
+- scoring rubric
+- player role and AI role
+
+## 7. Levels Configuration
+
+Difficulty should live in a structured config file, for example `config/levels.ts`.
+
+Suggested fields:
+
+- level
+- label
+- model
+- provider
+- temperature
+- reasoning mode notes
+- output budget
+- objection aggressiveness
+- witness consistency strictness
+- retrieval enabled flag
+
+This avoids baking difficulty logic directly into prompts.
+
+## 8. API Surface
+
+### POST `/api/session`
+
+Creates a session from:
+
+- selected case ID
+- selected role
+
+Returns:
+
+- session ID
+- resolved case file
+- role mapping
+- initial session state
+
+### POST `/api/agent`
+
+Triggers:
+
+- AI lawyer turns
+- witness turns
+- judge rulings
+- final verdict generation
+
+Streaming remains appropriate for live courtroom turns. Final deliberation may be non-streamed or streamed depending on UX.
+
+### POST `/api/voice`
+
+Accepts player audio and returns:
+
+- transcript text
+- optional confidence data
+- optional segment timing metadata
+
+The client should let the player review or edit this text before submission into the court transcript.
+
+## 9. Scoring Engine
+
+Add `src/lib/scoring/` for verdict evaluation support.
+
+Responsibilities:
+
+- rubric definition
+- transcript parsing
+- evidence-usage matching
+- objection handling assessment
+- category scoring for player and AI lawyer
+- aggregate score calculation
+- post-verdict feedback formatting
+
+The scoring engine can be hybrid:
+
+- deterministic helpers for transcript and evidence checks
+- model-assisted judgment for rhetorical quality and logical consistency
+
+## 10. Streaming And Input Model
+
+The streaming architecture stays. What changes is the trigger pattern.
+
+Old:
+
+- orchestrator advanced automatically after every AI turn
+
+New:
+
+- orchestrator streams AI turns
+- UI waits for player submission on player turns
+- player submission can originate from text input or voice transcript
+
+This preserves the existing server streaming approach while changing the courtroom control flow.
+
+## 11. Safety And Consistency Constraints
+
+- Do not send irrelevant witness context to a witness prompt.
+- Do not let witnesses invent facts outside their authored statements unless explicitly allowed by case design.
+- Do not let the judge coach the player mid-session.
+- Do not let the AI lawyer ignore the selected difficulty profile.
+- Do not store API keys or provider secrets in client code.

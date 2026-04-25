@@ -1,158 +1,236 @@
 # Product Requirements Document — Verdict
 
-**Version:** 1.0  
-**Status:** Draft  
-**Last Updated:** 2025-04-25
-
----
+**Version:** 2.0
+**Status:** Draft
+**Last Updated:** 2026-04-25
 
 ## 1. Overview
 
 ### 1.1 Product Summary
 
-Verdict is an adversarial multi-agent courtroom simulation platform. Users submit a moral dilemma, ethical question, or policy topic. A full AI-powered courtroom is instantiated — prosecution, defense, two witnesses, and a judge — and the agents argue the question in real time, with cross-examination, deliberation, and a final verdict with dissenting opinion.
+Verdict is a courtroom strategy and speaking game. The player studies a structured case file, chooses to play `Prosecution` or `Defense`, argues against an AI lawyer in a turn-based courtroom, and receives a win/loss verdict from an AI judge based on the quality of their performance.
 
-### 1.2 Problem Statement
+### 1.2 Product Pivot
 
-Complex moral and policy questions are typically explored through static essays, op-eds, or one-sided AI responses. There is no tool that surfaces the full adversarial tension of a contested idea — showing the strongest case for both sides simultaneously, tested under cross-examination, and resolved by structured deliberation.
+The original concept centered on multiple AI agents arguing while the user watched. That model is deprecated.
 
-### 1.3 Target Users
+The new product is built around player agency:
 
-- Students and educators exploring ethics and critical thinking
-- Researchers and policy analysts stress-testing arguments
-- General users curious about both sides of a complex question
-- Hackathon / conference demo audiences
+| Before | After |
+| --- | --- |
+| 5 AI agents, user watches | 1 AI lawyer + 1 AI judge + human player |
+| Open-ended moral questions | Preset case files with structured evidence |
+| No real stakes | Win/loss outcome based on player performance |
+| Passive AI influence | Player must argue and earn the result |
+| Low replay value | Levels, difficulty tiers, stronger opponents |
 
-### 1.4 Success Metrics
+### 1.3 Product Promise
 
-- Time-to-first-verdict: under 3 minutes from question submission
-- User session completion rate: >80% reach the verdict screen
-- Share rate: >30% of completed sessions trigger the share action
-- Demo engagement: audience can follow the argument without prior context
+Verdict should feel like:
 
----
+- an entertainment product with real tension and replayability
+- a skill-building tool for argumentation, rebuttal, and evidence use
+- a performance experience when used with voice input
 
-## 2. Core Features
+### 1.4 Target Users
 
-### 2.1 Case Entry (The Docket)
+- Students practicing structured argument and reasoning
+- Debate, mock trial, and law-adjacent learners
+- Players who enjoy adversarial strategy games
+- Demo audiences who need a clear, interactive loop
 
-- Single text input for user-submitted question or dilemma
-- 3–5 pre-loaded example cases covering ethics, technology, and policy
-- Case category auto-detection (Ethics / Technology / Law / History)
-- "Open the court" CTA that initialises the session
+### 1.5 Success Metrics
 
-### 2.2 Plea Screen
+- Time-to-first-playable-court session under 2 minutes from launch
+- Session completion rate above 70%
+- Retry or replay rate above 35%
+- Voice usage in a meaningful share of completed sessions
+- Clear perceived fairness of win/loss outcomes in user feedback
 
-- Intermediate pre-court screen shown after the Docket
-- The accused appears alone in a spotlight with the case question
-- User chooses `PLEAD GUILTY` or `PLEAD NOT GUILTY`
-- The plea sets the accused's visual posture for the rest of the session
-- Court has not started yet during this screen
+## 2. Core Product Loop
 
-### 2.3 The Courtroom Session (Live)
+1. Player selects a difficulty level.
+2. Player browses available cases in that tier.
+3. Player reads the full case file.
+4. Player selects `Prosecution` or `Defense`.
+5. Court opens and charges are read.
+6. The courtroom alternates between AI lawyer turns and player turns.
+7. Witnesses are examined and cross-examined.
+8. Either side may object; the judge rules.
+9. Both sides deliver closing arguments.
+10. The judge evaluates the transcript against the case file and rubric.
+11. Player receives a verdict, score breakdown, and targeted feedback.
+12. Player retries, advances, or selects another case.
 
-- Five AI agents instantiated with strict role-locked system prompts
-- One non-speaking accused figure remains present in the dock throughout the session
-- Turn-based orchestration: Opening → Examination → Cross-examination → Closing → Deliberation → Verdict
-- Streaming transcript: each agent's output renders word-by-word in real time
-- Character figures with idle / speaking pose states
-- Phase announcements via Clerk layer between turns
-- Case file panel: argument counts, key claims, tension meter
-- Witness direct examinations and cross-examinations run for exactly two turns each
+## 3. Primary Entities
 
-### 2.4 The Verdict
+### 3.1 Human Player
 
-- Judge agent delivers structured ruling: verdict line + full reasoning + dissenting opinion
-- Deliberation is shown as ARBITER thinking and is not streamed token-by-token
-- Dramatic reveal sequence: dimming scene, character focus, line-by-line text render
-- Full session transcript available post-verdict
+- Chooses role: `Prosecution` or `Defense`
+- Studies the case file before play
+- Responds by typed text or voice
+- Wins or loses based on transcript quality, not on passive observation
 
-### 2.5 Post-Verdict Scoring
+### 3.2 AI Lawyer
 
-- Argument stats per attorney: points argued and witnesses examined
-- Scales of justice visual tipping toward winning side
-- Shareable case card: case name, verdict, character figures, ruling text
+- Plays the side opposite the player
+- Uses the full case file and transcript
+- Adapts aggression and reasoning quality to the level configuration
+- Pressures weak logic and exploits missed evidence
 
----
+### 3.3 AI Judge
 
-## 3. The Five Agents
+- Mostly silent during active play except for rulings
+- Evaluates the full session at the end
+- Produces verdict, score breakdown, and feedback
 
-| Agent | Role | Stance |
-|---|---|---|
-| ARBITER | Judge | Neutral — delivers verdict and dissent |
-| ACCUSE | Prosecution | Against / guilty |
-| ADVOCATE | Defense | For / mitigating |
-| CHRONICLE | Witness I | Factual — cites events, data, timelines |
-| ETHOS | Witness II | Moral — ethical frameworks, intent, values |
+### 3.4 AI Witnesses
 
-Each agent operates with a strict system prompt. Agents receive the shared case file and full transcript history as context on every turn. No agent can break character or address the user directly.
+- Instantiated from the case file
+- Must remain consistent with their written statements
+- Respond only within the scope of their identity and the questions asked
 
----
+### 3.5 Clerk
 
-## 4. Session Flow
+- Presentation layer only
+- Announces charges, phase transitions, and procedural moments
+- Not a reasoning agent
 
-```
-User submits question
-        ↓
-Plea screen — user selects GUILTY or NOT GUILTY
-        ↓
-Clerk initialises case file and court opens
-        ↓
-ACCUSE delivers opening statement
-        ↓
-ADVOCATE delivers opening statement
-        ↓
-ACCUSE calls CHRONICLE → direct examination (2 turns)
-        ↓
-ADVOCATE cross-examines CHRONICLE (2 turns)
-        ↓
-ADVOCATE calls ETHOS → direct examination (2 turns)
-        ↓
-ACCUSE cross-examines ETHOS (2 turns)
-        ↓
-ACCUSE closing argument
-        ↓
-ADVOCATE closing argument
-        ↓
-ARBITER deliberation (not streamed) → verdict + dissent
-        ↓
-Post-verdict scoring reveal
-```
+## 4. Core Features
 
-Each phase is announced by the Clerk (a formatting layer, not an LLM call).
+### 4.1 Role Selection
 
----
+Role selection is a gameplay commitment, not cosmetic framing.
 
-## 5. Constraints and Scope
+It changes:
 
-### In scope (v1)
-- Web application, desktop-first
-- 5 AI agents, 1 user question, 1 session at a time
-- 4 fixed stages: Plea, Opening, Examination, Closing/Verdict
-- Shareable verdict card
+- which burden the player must satisfy
+- which objective they must argue toward
+- which witnesses they question directly
+- which attacks the AI lawyer makes
+- how the judge evaluates omissions and weak spots
 
-### Out of scope (v1)
-- User accounts or session history
-- Mobile layout
-- Multiple simultaneous sessions
-- Custom agent configuration by user
-- Voice / audio output
-- Jury mechanic (audience voting)
+### 4.2 Case File System
 
----
+Verdict no longer starts from arbitrary user-submitted moral prompts. It starts from authored case files.
+
+Every case file includes:
+
+- title and metadata
+- summary
+- date and location
+- charges
+- police or incident report
+- 2-3 witness statements
+- physical evidence list
+- relevant prior rulings or precedents when applicable
+- prosecution objective
+- defense objective
+- difficulty configuration
+
+### 4.3 Levels And Difficulty
+
+| Level | Case Style | AI Opponent Model | AI Behaviour |
+| --- | --- | --- | --- |
+| 1 — Rookie | Open-and-shut cases, clear evidence | weaker model / low temperature | obvious arguments, easy to counter |
+| 2 — Junior | Ambiguous evidence, one strong counter | mid-tier model | finds gaps in weak arguments |
+| 3 — Senior | Conflicting witness statements | strong model | anticipates and attacks weak logic |
+| 4 — Partner | Minimal evidence, very hard inference | best available model | dismantles weak arguments quickly |
+| 5 — Legend | Landmark cases with historical context | best model + retrieval | near-unbeatable aspirational opponent |
+
+Difficulty affects both:
+
+- case complexity
+- model selection
+- reasoning profile
+- objection behavior
+- how aggressively the AI punishes unsupported claims
+
+### 4.4 Court Session Flow
+
+The target interaction flow is:
+
+1. Level select
+2. Case browser
+3. Case study screen
+4. Role select
+5. Charges read by clerk
+6. Opening statements
+7. Witness examination and cross-examination
+8. Objection handling
+9. Closing arguments
+10. Deliberation
+11. Verdict
+12. Post-verdict actions
+
+The transcript alternates between:
+
+- AI lawyer turn
+- player turn
+- witness turn when relevant
+- judge ruling when needed
+
+### 4.5 Voice Input
+
+The player should be able to argue by:
+
+- typed text
+- microphone capture transcribed into text
+
+Voice is a first-class feature because it turns the product into a courtroom performance rather than a text-only tactics screen.
+
+### 4.6 Win/Loss Scoring
+
+The judge evaluates both sides on:
+
+- argument strength
+- use of evidence from the case file
+- logical consistency
+- handling of objections
+- responsiveness to the opponent's attacks
+
+The player wins if their aggregate score exceeds the AI lawyer's score.
+
+The result screen should include:
+
+- win/loss outcome
+- category scores
+- strongest player arguments
+- where the player lost ground
+- what evidence the player missed
+- what the AI lawyer exploited successfully
+
+## 5. Scope
+
+### In Scope (Current Direction)
+
+- Case-file-driven sessions
+- Level and difficulty tiers
+- Human turn-taking via text input
+- Human turn-taking via voice transcription
+- AI lawyer, judge, and witness prompts
+- Win/loss scoring with structured feedback
+- Replayability through cases and levels
+
+### Out Of Scope (For Now)
+
+- Open-ended user-created cases as the core mode
+- Fully autonomous AI-vs-AI sessions as the primary experience
+- Multiplayer or live PvP
+- Persistent progression systems beyond local session results
+- Jury voting mechanics
 
 ## 6. Non-Functional Requirements
 
-- First agent response begins streaming within 3 seconds of session start
-- Full session completes in under 4 minutes at default settings
-- No session state stored server-side beyond the active session
-- API keys never exposed to the client
-- Works in Chrome, Firefox, Safari (latest two versions each)
-
----
+- First AI turn should begin quickly after role selection and court open
+- The orchestrator must pause for player input on every player turn
+- Witness replies must remain consistent with case file statements
+- Scoring must feel explainable and grounded in the transcript
+- Voice transcription must resolve into editable transcript text before submission
+- API keys remain server-side only
 
 ## 7. Open Questions
 
-- Should users be able to pause/resume a session mid-argument?
-- Should the post-verdict card be an image export or a shareable URL?
-- Should CHRONICLE and ETHOS always both appear, or be selectively called per topic?
+- Should opening statements always start with the AI lawyer, or vary by role and case?
+- Should retries preserve the same case facts but vary witness tone at higher levels?
+- Should Level 5 retrieval be limited to curated precedent packs instead of broad search?
