@@ -108,6 +108,7 @@ function App() {
   const [session, setSession] = useState<ApiSession | null>(null)
   const [streamingLawyerText, setStreamingLawyerText] = useState('')
   const [userTurnInput, setUserTurnInput] = useState('')
+  const [playerTurnUnlocked, setPlayerTurnUnlocked] = useState(false)
   const [isWorking, setIsWorking] = useState(false)
   const [judgeControlsOpen, setJudgeControlsOpen] = useState(false)
   const judgeControlsRef = useRef<HTMLDivElement | null>(null)
@@ -191,7 +192,7 @@ function App() {
       }
     }
 
-    if (session.awaitingPlayerInput) {
+    if (session.awaitingPlayerInput && playerTurnUnlocked) {
       return {
         speaker: 'player' as const,
         text: selectedRange?.template ?? 'Present your next courtroom argument.',
@@ -209,14 +210,14 @@ function App() {
 
     if (latestTurn) {
       return {
-        speaker: 'judge' as const,
+        speaker: 'clerk' as const,
         text: latestTurn.content,
         phase: latestTurn.phase,
       }
     }
 
     return null
-  }, [latestTurn, selectedRange, session, streamingLawyerText])
+  }, [latestTurn, playerTurnUnlocked, selectedRange, session, streamingLawyerText])
 
   async function runLawyerTurn(sessionId: string) {
     setIsWorking(true)
@@ -227,6 +228,7 @@ function App() {
       startTransition(() => {
         setSession(updatedSession)
       })
+      setPlayerTurnUnlocked(false)
     } catch (error) {
       setLoadingError(error instanceof Error ? error.message : 'Lawyer turn failed.')
     } finally {
@@ -244,6 +246,7 @@ function App() {
     setCourtOpen(true)
     setSession(null)
     setUserTurnInput('')
+    setPlayerTurnUnlocked(false)
     setIsWorking(true)
 
     try {
@@ -275,6 +278,7 @@ function App() {
     try {
       const updatedSession = await submitPlayerTurnRequest(session.sessionId, userTurnInput.trim())
       setUserTurnInput('')
+      setPlayerTurnUnlocked(false)
       startTransition(() => {
         setSession(updatedSession)
       })
@@ -311,6 +315,7 @@ function App() {
     setSession(null)
     setStreamingLawyerText('')
     setUserTurnInput('')
+    setPlayerTurnUnlocked(false)
     setJudgeControlsOpen(false)
     setSelectedLevel(null)
     setSelectedRange(null)
@@ -398,9 +403,20 @@ function App() {
                   void handlePlayerSubmit()
                 }}
                 onSecondaryAction={() => {
+                  if (session?.awaitingPlayerInput && !playerTurnUnlocked) {
+                    setPlayerTurnUnlocked(true)
+                    return
+                  }
+
                   void handleRequestVerdict()
                 }}
-                secondaryActionLabel={session?.phase !== 'verdict' ? 'Ask Judge For Verdict' : undefined}
+                secondaryActionLabel={
+                  session?.awaitingPlayerInput && !playerTurnUnlocked
+                    ? 'Next'
+                    : session?.phase !== 'verdict'
+                      ? 'Ask Judge For Verdict'
+                      : undefined
+                }
                 isBusy={isWorking}
               />
               {parsedVerdict ? (

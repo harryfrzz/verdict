@@ -79,9 +79,9 @@ function CourtTurn({
                   <textarea
                     value={userInput}
                     onChange={(event) => onUserInputChange?.(event.target.value)}
-                    rows={7}
+                    rows={6}
                     placeholder={text}
-                    className="block h-30 w-full resize-none rounded-lg border border-stone-300 bg-white px-4 py-3 text-sm leading-6 text-stone-950 outline-none transition placeholder:text-stone-400 focus:border-stone-950"
+                    className="block h-32 w-full overflow-y-auto resize-none rounded-lg border border-stone-300 bg-white px-4 py-3 text-sm leading-6 text-stone-950 outline-none transition placeholder:text-stone-400 focus:border-stone-950"
                   />
                   <button
                     type="button"
@@ -126,8 +126,22 @@ function CourtTurn({
               ) : null}
             </form>
           ) : (
-            <div className="rounded-md border border-white/12 bg-stone-50 px-5 py-4 text-base font-medium leading-7 text-stone-950 shadow-[0_22px_70px_rgba(0,0,0,0.36)]">
-              {text}
+            <div className="w-full">
+              <div className="rounded-md border border-white/12 bg-stone-50 px-5 py-4 text-base font-medium leading-7 text-stone-950 shadow-[0_22px_70px_rgba(0,0,0,0.36)]">
+                <div className="max-h-[24rem] overflow-y-auto pr-1">
+                  {text}
+                </div>
+              </div>
+              {secondaryActionLabel && onSecondaryAction ? (
+                <button
+                  type="button"
+                  disabled={isBusy}
+                  onClick={onSecondaryAction}
+                  className="mt-3 w-full rounded-lg border border-stone-300 bg-white px-4 py-3 text-sm font-semibold text-stone-800 transition hover:border-stone-950 hover:text-stone-950 disabled:cursor-not-allowed disabled:border-stone-200 disabled:text-stone-400"
+                >
+                  {secondaryActionLabel}
+                </button>
+              ) : null}
             </div>
           )}
         </div>
