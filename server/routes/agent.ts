@@ -35,6 +35,17 @@ function getSession(sessionId: unknown, res: Response) {
   return session
 }
 
+function buildAutoLossVerdict(session: NonNullable<ReturnType<typeof getSession>>): string {
+  return [
+    'OUTCOME: Loss for player.',
+    'SUMMARY: The player requested a verdict without presenting a substantive courtroom argument, so the opposing counsel prevails on the record presented.',
+    'REASONING: The court cannot credit advocacy that was never made. The authored case file contains enough material for opposing counsel to advance a theory of the case, but the player offered no developed argument, no rebuttal, and no evidence-based challenge. On that record, the player does not meet the burden of persuasion for their chosen side.',
+    'PLAYER_STRENGTHS: None developed on the live record.',
+    'PLAYER_GAPS: No opening or closing argument was presented. No evidence was cited by the player. No rebuttal was made to the opposing theory.',
+    `OPPONENT_ADVANTAGES: The ${session.aiRole} side was the only side to place a developed argument into the session record.`,
+  ].join('\n')
+}
+
 router.post('/', async (req: Request, res: Response) => {
   const { sessionId, action, outcome } = req.body as {
     sessionId?: unknown
@@ -111,6 +122,14 @@ router.post('/', async (req: Request, res: Response) => {
   }
 
   try {
+    if (session.playerTurnsTaken === 0) {
+      const content = buildAutoLossVerdict(session)
+      const result = recordFinalVerdict(session, content)
+      sessionStore.set(result.session)
+      res.json({ content, session: result.session })
+      return
+    }
+
     const config = getCourtActorConfig(session.caseFile.level, 'judge')
     const content = await callAgentOnce(
       judgeSystemPrompt('verdict'),

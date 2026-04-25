@@ -138,6 +138,9 @@ export interface SessionState {
   objections: ObjectionRecord[]
   awaitingPlayerInput: boolean
   nextSpeaker: TurnSpeaker
+  playerTurnsTaken: number
+  lawyerTurnsTaken: number
+  maxTurnsPerSide: number
   createdAt: number
   updatedAt: number
 }

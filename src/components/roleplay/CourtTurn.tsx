@@ -127,10 +127,8 @@ function CourtTurn({
             </form>
           ) : (
             <div className="w-full">
-              <div className="rounded-md border border-white/12 bg-stone-50 px-5 py-4 text-base font-medium leading-7 text-stone-950 shadow-[0_22px_70px_rgba(0,0,0,0.36)]">
-                <div className="max-h-[24rem] overflow-y-auto pr-1">
-                  {text}
-                </div>
+              <div className="h-56 overflow-y-auto rounded-md border border-white/12 bg-stone-50 px-5 py-4 text-base font-medium leading-7 text-stone-950 shadow-[0_22px_70px_rgba(0,0,0,0.36)]">
+                {text}
               </div>
               {secondaryActionLabel && onSecondaryAction ? (
                 <button

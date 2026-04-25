@@ -77,6 +77,9 @@ export interface ApiSession {
   objections: ApiObjection[]
   awaitingPlayerInput: boolean
   nextSpeaker: ApiSpeaker
+  playerTurnsTaken: number
+  lawyerTurnsTaken: number
+  maxTurnsPerSide: number
   createdAt: number
   updatedAt: number
 }

@@ -63,6 +63,9 @@ export function createSessionState(caseFile: CaseFile, playerRole: Role): Sessio
     objections: [],
     awaitingPlayerInput: false,
     nextSpeaker: 'lawyer',
+    playerTurnsTaken: 0,
+    lawyerTurnsTaken: 0,
+    maxTurnsPerSide: 2,
     createdAt: timestamp,
     updatedAt: timestamp,
   }

@@ -90,7 +90,7 @@ function buildRoleMap(session: ApiSession | null, userSide: UserSide): Record<'p
     clerk: {
       name: 'CLERK',
       title: 'Court Clerk',
-      imageSrc: '/judge.png',
+      imageSrc: '/clerk.png',
       side: 'right',
       accentClass: 'bg-stone-400',
     },
@@ -107,6 +107,7 @@ function App() {
   const [userSide, setUserSide] = useState<UserSide>('advocate')
   const [session, setSession] = useState<ApiSession | null>(null)
   const [streamingLawyerText, setStreamingLawyerText] = useState('')
+  const [pendingJudgeText, setPendingJudgeText] = useState<string | null>(null)
   const [userTurnInput, setUserTurnInput] = useState('')
   const [playerTurnUnlocked, setPlayerTurnUnlocked] = useState(false)
   const [isWorking, setIsWorking] = useState(false)
@@ -192,6 +193,14 @@ function App() {
       }
     }
 
+    if (pendingJudgeText) {
+      return {
+        speaker: 'judge' as const,
+        text: pendingJudgeText,
+        phase: session.phase === 'verdict' ? 'deliberation' : session.phase,
+      }
+    }
+
     if (session.awaitingPlayerInput && playerTurnUnlocked) {
       return {
         speaker: 'player' as const,
@@ -217,11 +226,12 @@ function App() {
     }
 
     return null
-  }, [latestTurn, playerTurnUnlocked, selectedRange, session, streamingLawyerText])
+  }, [latestTurn, pendingJudgeText, playerTurnUnlocked, selectedRange, session, streamingLawyerText])
 
   async function runLawyerTurn(sessionId: string) {
     setIsWorking(true)
     setStreamingLawyerText('')
+    setPendingJudgeText(null)
 
     try {
       const updatedSession = await streamLawyerTurn(sessionId, setStreamingLawyerText)
@@ -247,6 +257,7 @@ function App() {
     setSession(null)
     setUserTurnInput('')
     setPlayerTurnUnlocked(false)
+    setPendingJudgeText(null)
     setIsWorking(true)
 
     try {
@@ -283,6 +294,17 @@ function App() {
         setSession(updatedSession)
       })
 
+      if (updatedSession.phase === 'deliberation' || updatedSession.nextSpeaker === 'judge') {
+        setPendingJudgeText('The judge is reviewing the record and preparing a verdict...')
+        const verdictSession = await requestFinalVerdict(updatedSession.sessionId)
+        startTransition(() => {
+          setSession(verdictSession)
+        })
+        setPendingJudgeText(null)
+        setIsWorking(false)
+        return
+      }
+
       await runLawyerTurn(updatedSession.sessionId)
     } catch (error) {
       setLoadingError(error instanceof Error ? error.message : 'Unable to submit player turn.')
@@ -297,14 +319,17 @@ function App() {
 
     setIsWorking(true)
     setLoadingError(null)
+    setPendingJudgeText('The judge is reviewing the record and preparing a verdict...')
 
     try {
       const verdictSession = await requestFinalVerdict(session.sessionId)
       startTransition(() => {
         setSession(verdictSession)
       })
+      setPendingJudgeText(null)
     } catch (error) {
       setLoadingError(error instanceof Error ? error.message : 'Unable to request final verdict.')
+      setPendingJudgeText(null)
     } finally {
       setIsWorking(false)
     }
@@ -314,6 +339,7 @@ function App() {
     setCourtOpen(false)
     setSession(null)
     setStreamingLawyerText('')
+    setPendingJudgeText(null)
     setUserTurnInput('')
     setPlayerTurnUnlocked(false)
     setJudgeControlsOpen(false)
@@ -358,19 +384,6 @@ function App() {
                 >
                   Court adjourned
                 </button>
-                {session && session.phase !== 'verdict' ? (
-                  <button
-                    type="button"
-                    disabled={isWorking}
-                    onClick={() => {
-                      setJudgeControlsOpen(false)
-                      void handleRequestVerdict()
-                    }}
-                    className="rounded-md bg-amber-200 px-3 py-2 text-sm font-semibold text-stone-950 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:bg-stone-400 active:scale-[0.98]"
-                  >
-                    Request verdict
-                  </button>
-                ) : null}
               </div>
             ) : null}
           </div>
@@ -413,9 +426,9 @@ function App() {
                 secondaryActionLabel={
                   session?.awaitingPlayerInput && !playerTurnUnlocked
                     ? 'Next'
-                    : session?.phase !== 'verdict'
-                      ? 'Ask Judge For Verdict'
-                      : undefined
+                    : session?.awaitingPlayerInput && playerTurnUnlocked && session?.phase !== 'verdict'
+                      ? 'Request Verdict'
+                    : undefined
                 }
                 isBusy={isWorking}
               />

@@ -54,8 +54,12 @@ function getResumeSpeaker(session: SessionState): TurnSpeaker {
 }
 
 function nextPhaseAfterPlayerTurn(session: SessionState): SessionPhase {
-  if (session.phase === 'opening') {
-    return 'argument'
+  if (session.phase === 'opening' && session.playerTurnsTaken + 1 >= 1) {
+    return 'closing'
+  }
+
+  if (session.phase === 'closing' && session.playerTurnsTaken + 1 >= session.maxTurnsPerSide) {
+    return 'deliberation'
   }
 
   return session.phase
@@ -85,8 +89,15 @@ export function submitAgentTurn(
   const nextSession = result.session
 
   if (speaker === 'lawyer') {
+    nextSession.lawyerTurnsTaken = session.lawyerTurnsTaken + 1
     nextSession.awaitingPlayerInput = true
     nextSession.nextSpeaker = 'player'
+
+    if (session.phase === 'opening' && nextSession.lawyerTurnsTaken >= 1) {
+      nextSession.phase = 'opening'
+    } else if (session.phase === 'closing') {
+      nextSession.phase = 'closing'
+    }
   } else {
     nextSession.phase = 'argument'
     nextSession.awaitingPlayerInput = true
@@ -113,9 +124,10 @@ export function submitPlayerTurn(session: SessionState, content: string): Sessio
   const result = appendTurn(session, buildTurn('player', phase, trimmed, session.playerRole))
   const nextSession = result.session
 
+  nextSession.playerTurnsTaken = session.playerTurnsTaken + 1
   nextSession.phase = nextPhaseAfterPlayerTurn(session)
   nextSession.awaitingPlayerInput = false
-  nextSession.nextSpeaker = 'lawyer'
+  nextSession.nextSpeaker = nextSession.phase === 'deliberation' ? 'judge' : 'lawyer'
 
   return {
     ...result,

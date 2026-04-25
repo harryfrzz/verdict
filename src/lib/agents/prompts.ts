@@ -115,6 +115,7 @@ export function judgeSystemPrompt(mode: 'ruling' | 'verdict'): string {
     'You are the AI judge for a courtroom roleplay session.',
     'Your task is to evaluate the full transcript against the authored case file and return a final verdict.',
     'You must remain grounded in the supplied record.',
+    'If the player provided no substantive courtroom argument, the player should not win by default.',
     'Score both sides on argument strength, evidence use, logical consistency, pressure response, and objection handling.',
     'Return a structured response using the exact headings: OUTCOME, SUMMARY, REASONING, PLAYER_STRENGTHS, PLAYER_GAPS, OPPONENT_ADVANTAGES.',
   ].join('\n')
@@ -150,6 +151,8 @@ export function buildFinalVerdictUserMessage(session: SessionState): string {
     `Player role: ${session.playerRole}`,
     `AI lawyer role: ${session.aiRole}`,
     `Current phase: ${session.phase}`,
+    `Player turns taken: ${session.playerTurnsTaken}`,
+    `Lawyer turns taken: ${session.lawyerTurnsTaken}`,
     '',
     'Transcript:',
     formatTranscript(session.transcript),
