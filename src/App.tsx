@@ -120,9 +120,11 @@ function App() {
   const [playerTurnUnlocked, setPlayerTurnUnlocked] = useState(false)
   const [isWorking, setIsWorking] = useState(false)
   const [judgeControlsOpen, setJudgeControlsOpen] = useState(false)
+  const [bgMusicMuted, setBgMusicMuted] = useState(false)
   const judgeControlsRef = useRef<HTMLDivElement | null>(null)
   const lawyerAudioRef = useRef<AudioStreamPlayer | null>(null)
   const judgeAudioRef = useRef<AudioStreamPlayer | null>(null)
+  const bgMusicRef = useRef<HTMLAudioElement | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -189,6 +191,50 @@ function App() {
       window.clearTimeout(timeoutId)
     }
   }, [adjournmentOpen, returnCountdown])
+
+  useEffect(() => {
+    const audio = bgMusicRef.current
+    if (!audio) {
+      return
+    }
+
+    const shouldPlayMenuMusic = !courtOpen && !adjournmentOpen
+    audio.loop = true
+    audio.volume = 0.35
+    audio.muted = bgMusicMuted
+
+    if (shouldPlayMenuMusic && !bgMusicMuted) {
+      void audio.play().catch(() => {
+        // Browsers may block autoplay until the first user gesture.
+      })
+      return
+    }
+
+    audio.pause()
+  }, [adjournmentOpen, bgMusicMuted, courtOpen])
+
+  useEffect(() => {
+    if (courtOpen || adjournmentOpen || bgMusicMuted) {
+      return
+    }
+
+    const playOnInteraction = () => {
+      const audio = bgMusicRef.current
+      if (!audio) {
+        return
+      }
+
+      audio.muted = false
+      void audio.play().catch(() => {
+        // If playback is still blocked, the toggle button can start it later.
+      })
+    }
+
+    window.addEventListener('pointerdown', playOnInteraction, { once: true })
+    return () => {
+      window.removeEventListener('pointerdown', playOnInteraction)
+    }
+  }, [adjournmentOpen, bgMusicMuted, courtOpen])
 
   const roleMap = useMemo(() => buildRoleMap(session, userSide), [session, userSide])
   const visibleTurns = useMemo(() => session?.transcript ?? [], [session])
@@ -428,14 +474,73 @@ function App() {
     setIsWorking(false)
   }
 
+  function toggleBgMusic() {
+    const nextMuted = !bgMusicMuted
+    setBgMusicMuted(nextMuted)
+
+    const audio = bgMusicRef.current
+    if (!audio) {
+      return
+    }
+
+    audio.muted = nextMuted
+    if (!nextMuted && !courtOpen && !adjournmentOpen) {
+      void audio.play().catch(() => {
+        // Playback can be retried on the next user gesture.
+      })
+    }
+  }
+
   return (
     <div className="relative min-h-screen overflow-hidden">
+      <audio ref={bgMusicRef} src="/bg_sound.mp3" loop preload="auto" />
       <img
         className="absolute inset-0 z-0 h-full w-full object-cover"
         src="/bg_courtroom.png"
         alt=""
       />
       <div className="absolute inset-0 z-[1] bg-[linear-gradient(180deg,rgba(4,4,8,0.16)_0%,rgba(4,4,8,0.34)_52%,rgba(4,4,8,0.72)_100%)]" />
+      {!courtOpen && !selectedLevel ? (
+        <button
+          type="button"
+          aria-label={bgMusicMuted ? 'Unmute background music' : 'Mute background music'}
+          onClick={toggleBgMusic}
+          className="fixed right-4 top-4 z-30 flex items-center gap-2 rounded-2xl border border-amber-100/20 bg-stone-950/82 px-4 py-3 text-sm font-semibold text-stone-100 shadow-[0_18px_48px_rgba(0,0,0,0.42)] backdrop-blur-sm transition hover:-translate-y-0.5 hover:border-amber-100/45 hover:bg-stone-900/90 hover:text-amber-100"
+        >
+          {bgMusicMuted ? (
+            <svg
+              className="h-5 w-5"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M11 5 6 9H2v6h4l5 4V5Z" />
+              <path d="m22 9-6 6" />
+              <path d="m16 9 6 6" />
+            </svg>
+          ) : (
+            <svg
+              className="h-5 w-5"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M11 5 6 9H2v6h4l5 4V5Z" />
+              <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+              <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+            </svg>
+          )}
+          <span>{bgMusicMuted ? 'Muted' : 'Music'}</span>
+        </button>
+      ) : null}
       {courtOpen ? (
         <>
           <div
