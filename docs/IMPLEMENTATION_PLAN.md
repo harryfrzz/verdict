@@ -31,7 +31,6 @@ Order:
 1. Replace the five-agent mental model with prompts for:
    - opposing lawyer
    - judge
-   - witness
 2. Update server LLM routing assumptions so calls can target those roles.
 3. Keep the Clerk as a deterministic formatting layer.
 4. Make sure prompts accept injected case-file sections rather than a generic question.
@@ -39,7 +38,6 @@ Order:
 Checkpoint:
 
 - A single lawyer turn can be generated from a case file and player role.
-- A single witness turn can be generated from witness data only.
 
 ## Hour 2 — Session State And Orchestrator
 
@@ -56,6 +54,7 @@ Order:
 2. Update the orchestrator to alternate between AI turns and player turns.
 3. Add objection handling and judge ruling hooks.
 4. Add a verdict assembly path that packages transcript, case file, and rubric for scoring.
+5. Add separate realtime session handling for lawyer and judge voice output.
 
 Checkpoint:
 
@@ -85,25 +84,28 @@ Order:
    - mic button for voice capture
    - submit flow that advances the court only after player action
 6. Keep streaming architecture for AI turns exactly where it already makes sense.
+7. Do not build live witness speaking UI; witness material belongs in the case-study experience.
 
 Checkpoint:
 
 - A player can read a case, choose a role, submit an opening statement, and see the AI respond.
 
-## Hour 4 — Voice Transcription And Witness Flow
+## Hour 4 — Voice Transcription And Audio Court Output
 
 Order:
 
 1. Add `/api/voice` transcription route.
 2. Add client-side mic capture and audio upload.
 3. Show transcribed text for player review before submission.
-4. Add witness examination and cross-examination flow using authored witness profiles.
-5. Add objection UI and judge ruling path.
+4. Add lawyer audio output with live transcript using `gpt-realtime-1.5`.
+5. Add judge audio output with live transcript using `gpt-realtime-1.5`.
+6. Use separate voice configuration for lawyer and judge.
+7. Add objection UI and judge ruling path.
 
 Checkpoint:
 
 - Player can speak an argument and submit the transcript as their turn.
-- Witnesses remain consistent with their statements.
+- Lawyer and judge both respond with speech plus transcript text.
 
 ## Hour 5 — Scoring Engine And Verdict
 
@@ -131,6 +133,7 @@ Order:
 3. Improve post-verdict retry and level-up flows.
 4. Prepare one easy demo case and one difficult demo case.
 5. Verify both text and voice play paths.
+6. Verify judge and lawyer voices are clearly distinct in demos.
 
 Checkpoint:
 

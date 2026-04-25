@@ -55,7 +55,7 @@ Verdict should feel like:
 4. Player selects `Prosecution` or `Defense`.
 5. Court opens and charges are read.
 6. The courtroom alternates between AI lawyer turns and player turns.
-7. Witnesses are examined and cross-examined.
+7. Witness statements are challenged and cited from the case file.
 8. Either side may object; the judge rules.
 9. Both sides deliver closing arguments.
 10. The judge evaluates the transcript against the case file and rubric.
@@ -84,11 +84,11 @@ Verdict should feel like:
 - Evaluates the full session at the end
 - Produces verdict, score breakdown, and feedback
 
-### 3.4 AI Witnesses
+### 3.4 Witness Records
 
-- Instantiated from the case file
-- Must remain consistent with their written statements
-- Respond only within the scope of their identity and the questions asked
+- Exist as authored records inside the case file
+- Are not shown as live courtroom participants during proceedings
+- Shape what arguments, attacks, and credibility disputes both sides can make
 
 ### 3.5 Clerk
 
@@ -128,6 +128,8 @@ Every case file includes:
 - defense objective
 - difficulty configuration
 
+Witnesses are preparation material, not live speaking courtroom entities.
+
 ### 4.3 Levels And Difficulty
 
 | Level | Case Style | AI Opponent Model | AI Behaviour |
@@ -156,18 +158,16 @@ The target interaction flow is:
 4. Role select
 5. Charges read by clerk
 6. Opening statements
-7. Witness examination and cross-examination
-8. Objection handling
-9. Closing arguments
-10. Deliberation
-11. Verdict
-12. Post-verdict actions
+7. Witness-statement challenges and objection handling
+8. Closing arguments
+9. Deliberation
+10. Verdict
+11. Post-verdict actions
 
 The transcript alternates between:
 
 - AI lawyer turn
 - player turn
-- witness turn when relevant
 - judge ruling when needed
 
 ### 4.5 Voice Input
@@ -179,7 +179,21 @@ The player should be able to argue by:
 
 Voice is a first-class feature because it turns the product into a courtroom performance rather than a text-only tactics screen.
 
-### 4.6 Win/Loss Scoring
+### 4.6 Realtime Voice Output
+
+Both the AI lawyer and AI judge should respond with:
+
+- streamed speech
+- synchronized transcript text in the UI
+
+The target model is `gpt-realtime-1.5`.
+
+Voice direction:
+
+- lawyer: younger, sharper, more aggressive sound
+- judge: more mature, steady, authoritative sound
+
+### 4.7 Win/Loss Scoring
 
 The judge evaluates both sides on:
 
@@ -208,7 +222,7 @@ The result screen should include:
 - Level and difficulty tiers
 - Human turn-taking via text input
 - Human turn-taking via voice transcription
-- AI lawyer, judge, and witness prompts
+- AI lawyer and judge prompts
 - Win/loss scoring with structured feedback
 - Replayability through cases and levels
 
@@ -224,7 +238,7 @@ The result screen should include:
 
 - First AI turn should begin quickly after role selection and court open
 - The orchestrator must pause for player input on every player turn
-- Witness replies must remain consistent with case file statements
+- Witness references must remain consistent with case file statements
 - Scoring must feel explainable and grounded in the transcript
 - Voice transcription must resolve into editable transcript text before submission
 - API keys remain server-side only

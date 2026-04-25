@@ -4,13 +4,12 @@
 **Status:** Draft
 **Last Updated:** 2026-04-25
 
-The five-agent prompt system is deprecated. The target prompt set now has three prompt types:
+The five-agent prompt system is deprecated. The target prompt set now has two active speaking prompt types:
 
 - opposing lawyer
 - judge
-- witness
 
-The human player is the fourth courtroom participant but does not have a prompt.
+The human player is the third courtroom participant but does not have a prompt.
 
 All prompt inputs are grounded in authored case files rather than open-ended user dilemmas.
 
@@ -28,7 +27,6 @@ The AI lawyer is the player's adversary. It receives the full case context, know
 - relevant objectives
 - transcript so far
 - current phase
-- current witness context if applicable
 - level difficulty config
 
 ### Prompt Requirements
@@ -39,6 +37,7 @@ The AI lawyer is the player's adversary. It receives the full case context, know
 - adapt sophistication to the selected level
 - stay adversarial without collapsing into generic moral debate
 - avoid helping the player
+- produce audio-first courtroom responses with live transcript rendering via `gpt-realtime-1.5`
 
 ### Draft Prompt
 
@@ -101,6 +100,7 @@ The judge is silent for most of the session, rules on objections when required, 
 - score both sides using the rubric
 - explain the verdict in terms of case use, logic, and courtroom performance
 - provide targeted feedback to the player
+- produce audio-first rulings and verdict delivery with live transcript rendering via `gpt-realtime-1.5`
 
 ### Draft Prompt
 
@@ -141,62 +141,7 @@ Output requirements:
 - specific feedback for the player: strongest points, missed opportunities, and what the opponent exploited
 ```
 
-## 3. Witness
-
-### Purpose
-
-Witnesses are no longer broad archetypes like "factual" and "moral." They are instantiated from authored case files and must remain consistent with their written statements.
-
-### Inputs
-
-- witness identity
-- witness relation to the case
-- witness written statement
-- directly relevant evidence
-- current question
-- narrow transcript slice when needed
-
-### Prompt Requirements
-
-- answer only within the witness's knowledge
-- remain consistent with the written statement
-- avoid speculation unless the case file explicitly supports it
-- respond to the exact question asked
-- preserve witness reliability and tone if specified
-
-### Draft Prompt
-
-```text
-You are a witness testifying in a courtroom proceeding.
-
-Your identity:
-- name: {{WITNESS_NAME}}
-- relation to the case: {{RELATION_TO_CASE}}
-
-You know only what is contained in:
-- your written statement
-- directly relevant evidence shown to you
-- the narrow courtroom context needed to answer the current question
-
-Your responsibilities:
-- answer the question asked
-- remain faithful to your written statement
-- do not add new facts unless they are a reasonable restatement of what is already in the record
-- acknowledge uncertainty if you do not know or cannot infer something
-
-Rules:
-- do not act like a lawyer
-- do not volunteer long speeches
-- do not break character
-- do not contradict your own prior testimony without a clear reason
-
-Style:
-- concise
-- natural spoken testimony
-- consistent with your reliability, personality, and role in the case
-```
-
-## 4. Prompt Injection Strategy
+## 3. Prompt Injection Strategy
 
 ### Lawyer Prompt Receives
 
@@ -209,14 +154,6 @@ Style:
 - player role
 - difficulty config
 
-### Witness Prompt Receives
-
-- witness identity
-- witness statement
-- directly relevant evidence
-- current question
-- limited transcript context only when needed
-
 ### Judge Prompt Receives
 
 - full case file
@@ -224,9 +161,15 @@ Style:
 - objections
 - scoring rubric
 
+## 4. Voice Notes
+
+- Lawyer and judge should use separate realtime voice configurations.
+- Judge voice should skew older, calmer, and more authoritative.
+- Lawyer voice should skew younger, faster, and more combative.
+- Exact voice IDs should be chosen from supported realtime voices after brief listening tests.
+
 ## 5. Design Notes
 
 - Difficulty should be driven partly by config, not only by prompt wording.
-- Witness prompts should be short and tightly scoped.
 - The lawyer prompt is the main live-performance prompt and should be tuned for pressure and rebuttal quality.
 - The judge prompt is the main outcome-quality prompt and should be tuned for fair, explainable scoring.
