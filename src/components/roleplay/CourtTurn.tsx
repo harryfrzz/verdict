@@ -10,10 +10,12 @@ interface CourtTurnProps {
 function CourtTurn({ name, title, imageSrc, side, text, accentClass }: CourtTurnProps) {
   const wrapperPosition = side === 'left' ? 'justify-start' : 'justify-end'
   const textAlign = side === 'left' ? 'text-left items-start' : 'text-right items-end'
+  const slideAnimation =
+    side === 'left' ? 'animate-verdict-slide-in-left' : 'animate-verdict-slide-in-right'
 
   return (
     <div className={`flex min-h-[calc(100vh-8rem)] w-full items-center ${wrapperPosition}`}>
-      <div className={`flex w-full max-w-[34rem] flex-col ${textAlign}`}>
+      <div className={`flex w-full max-w-[34rem] flex-col ${textAlign} ${slideAnimation}`}>
         <div className="relative flex w-full justify-center">
           <div
             className={`absolute bottom-8 h-44 w-44 rounded-full blur-3xl ${
@@ -27,7 +29,10 @@ function CourtTurn({ name, title, imageSrc, side, text, accentClass }: CourtTurn
           />
         </div>
 
-        <div className={`relative z-20 -mt-8 flex w-full flex-col gap-3 ${textAlign}`}>
+        <div
+          className={`relative z-20 -mt-8 flex w-full flex-col gap-3 ${textAlign} animate-verdict-float-in`}
+          style={{ animationDelay: '120ms' }}
+        >
           <div className="rounded-md border border-white/12 bg-black/70 px-4 py-3 backdrop-blur-sm">
             <div className={`flex items-center gap-3 ${side === 'right' ? 'justify-end' : ''}`}>
               <span className={`h-2.5 w-2.5 rounded-full ${accentClass}`} />

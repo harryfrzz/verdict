@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import CharacterSetup, { type SetupCharacter } from './components/roleplay/CharacterSetup'
 import CourtTurn from './components/roleplay/CourtTurn'
 import sessionData from './data/courtSession.json'
@@ -108,13 +108,24 @@ function App() {
   const [courtOpen, setCourtOpen] = useState(false)
   const [activeIndex, setActiveIndex] = useState<number>(-1)
   const [casePrompt, setCasePrompt] = useState('')
+  const [judgeControlsOpen, setJudgeControlsOpen] = useState(false)
+  const judgeControlsRef = useRef<HTMLDivElement | null>(null)
   const [modelAssignments, setModelAssignments] = useState<Record<string, string>>(
     defaultModelAssignments,
   )
 
+  const resetCourt = () => {
+    setCourtOpen(false)
+    setActiveIndex(-1)
+    setCasePrompt('')
+    setJudgeControlsOpen(false)
+    setModelAssignments(defaultModelAssignments)
+  }
+
   useEffect(() => {
     if (!courtOpen) {
       setActiveIndex(-1)
+      setJudgeControlsOpen(false)
       return
     }
 
@@ -149,6 +160,26 @@ function App() {
     }
   }, [courtOpen, turns])
 
+  useEffect(() => {
+    if (!judgeControlsOpen) {
+      return
+    }
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (judgeControlsRef.current?.contains(event.target as Node)) {
+        return
+      }
+
+      setJudgeControlsOpen(false)
+    }
+
+    window.addEventListener('pointerdown', handlePointerDown)
+
+    return () => {
+      window.removeEventListener('pointerdown', handlePointerDown)
+    }
+  }, [judgeControlsOpen])
+
   const visibleTurns = useMemo(() => {
     if (activeIndex < 0) {
       return []
@@ -168,12 +199,45 @@ function App() {
       <div className="absolute inset-0 z-[1] bg-[linear-gradient(180deg,rgba(4,4,8,0.16)_0%,rgba(4,4,8,0.34)_52%,rgba(4,4,8,0.72)_100%)]" />
       {courtOpen ? (
         <>
-          <div className="group absolute left-[50.1%] top-[44.5%] z-[2] -translate-x-1/2 -translate-y-1/2">
-            <img
-              className="relative h-[min(9vh,28rem)] w-auto object-contain drop-shadow-[0_22px_28px_rgba(0,0,0,0.46)] transition duration-300 group-hover:scale-105"
-              src="/judge.png"
-              alt="Judge"
-            />
+          <div
+            ref={judgeControlsRef}
+            className="group absolute left-[50.1%] top-[44.5%] z-30 -translate-x-1/2 -translate-y-1/2 p-4"
+          >
+            <button
+              type="button"
+              aria-label="Toggle court controls"
+              onClick={() => setJudgeControlsOpen((isOpen) => !isOpen)}
+              className="block"
+            >
+              <img
+                className="relative h-[min(9vh,28rem)] w-auto object-contain drop-shadow-[0_22px_28px_rgba(0,0,0,0.46)] transition duration-300 group-hover:scale-105"
+                src="/judge.png"
+                alt="Judge"
+              />
+            </button>
+            {judgeControlsOpen ? (
+              <div className="absolute left-1/2 top-full mt-2 flex w-max -translate-x-1/2 animate-verdict-float-in items-center gap-3 rounded-md border border-stone-700 bg-stone-950/96 px-3 py-2 shadow-[0_18px_42px_rgba(0,0,0,0.36)]">
+                <button
+                  type="button"
+                  onClick={resetCourt}
+                  className="rounded-md border border-stone-700 bg-stone-900 px-3 py-2 text-sm font-medium text-stone-100 transition hover:border-stone-500 hover:bg-stone-800 active:scale-[0.98]"
+                >
+                  Court adjourned
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setJudgeControlsOpen(false)
+                    setActiveIndex(-1)
+                    setCourtOpen(false)
+                    window.setTimeout(() => setCourtOpen(true), 30)
+                  }}
+                  className="rounded-md bg-amber-200 px-3 py-2 text-sm font-semibold text-stone-950 transition hover:bg-amber-100 active:scale-[0.98]"
+                >
+                  Replay Court
+                </button>
+              </div>
+            ) : null}
           </div>
           <div className="group absolute left-1/2 top-[65%] z-[3] -translate-x-1/2 -translate-y-1/2">
             <img
@@ -185,24 +249,10 @@ function App() {
         </>
       ) : null}
       <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-[1440px] flex-col px-4 pb-24 pt-2 sm:px-6">
-        {courtOpen ? (
-          <div className="absolute right-4 top-4 z-30 sm:right-6">
-            <button
-              type="button"
-              onClick={() => {
-                setCourtOpen(false)
-                window.setTimeout(() => setCourtOpen(true), 30)
-              }}
-              className="rounded-md border border-amber-200/28 bg-black/64 px-4 py-2 text-sm font-medium text-amber-50 backdrop-blur-sm transition hover:bg-black/76"
-            >
-              Replay Court
-            </button>
-          </div>
-        ) : null}
-
         <main className="flex flex-1 items-center">
           {activeTurn ? (
             <CourtTurn
+              key={activeTurn.id}
               name={roleMap[activeTurn.agentId].name}
               title={roleMap[activeTurn.agentId].title}
               imageSrc={roleMap[activeTurn.agentId].imageSrc}

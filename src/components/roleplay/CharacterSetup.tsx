@@ -21,28 +21,28 @@ const characterPositions: Record<
   }
 > = {
   arbiter: {
-    className: 'left-1/2 top-[7%] w-[min(21vw,15rem)] -translate-x-1/2',
-    imageClassName: 'h-[min(24vh,15rem)]',
+    className: 'left-[528px] top-5 w-56',
+    imageClassName: 'h-56',
   },
   accused: {
-    className: 'left-1/2 top-[43%] w-[min(20vw,14rem)] -translate-x-1/2',
-    imageClassName: 'h-[min(27vh,17rem)]',
+    className: 'left-[544px] top-[320px] w-52',
+    imageClassName: 'h-64',
   },
   accuse: {
-    className: 'right-[6%] top-[34%] w-[min(16vw,18rem)]',
-    imageClassName: 'h-[min(39vh,25rem)]',
+    className: 'left-[984px] top-[260px] w-64',
+    imageClassName: 'h-96',
   },
   advocate: {
-    className: 'left-[5%] top-[34%] w-[min(19vw,18rem)]',
-    imageClassName: 'h-[min(39vh,25rem)]',
+    className: 'left-10 top-[260px] w-64',
+    imageClassName: 'h-96',
   },
   chronicle: {
-    className: 'right-[24%] top-[12%] w-[min(19vw,14rem)]',
-    imageClassName: 'h-[min(30vh,19rem)]',
+    className: 'left-[835px] top-20 w-52',
+    imageClassName: 'h-72',
   },
   ethos: {
-    className: 'left-[24%] top-[14%] w-[min(19vw,14rem)]',
-    imageClassName: 'h-[min(30vh,19rem)]',
+    className: 'left-[235px] top-24 w-52',
+    imageClassName: 'h-72',
   },
 }
 
@@ -53,7 +53,7 @@ function CharacterSetup({
   onModelChange,
 }: CharacterSetupProps) {
   return (
-    <section className="relative h-[calc(100vh-8rem)] w-full">
+    <section className="relative mx-auto h-[720px] w-[1280px] max-w-none shrink-0">
       {characters.map((character, index) => {
         const position = characterPositions[character.id]
 

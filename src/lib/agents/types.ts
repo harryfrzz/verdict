@@ -44,6 +44,21 @@ export interface AgentScore {
   witnessesExamined: number
 }
 
+export interface AgentRole {
+  id: AgentId
+  name: string
+  title: string
+  imageSrc: string
+  alignment: 'left' | 'right'
+  accentClass: string
+}
+
+export interface TranscriptTurn {
+  agentId: AgentId
+  phase: Phase
+  content: string
+}
+
 export type ClerkEvent =
   | 'session_open'
   | 'opening_accuse'
