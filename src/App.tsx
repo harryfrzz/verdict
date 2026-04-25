@@ -591,6 +591,10 @@ function App() {
                 onTranscribeAudio={transcribeAudio}
                 onSecondaryAction={() => {
                   if (session?.awaitingPlayerInput && !playerTurnUnlocked) {
+                    lawyerAudioRef.current?.stop()
+                    lawyerAudioRef.current = null
+                    judgeAudioRef.current?.stop()
+                    judgeAudioRef.current = null
                     setPlayerTurnUnlocked(true)
                     return
                   }
