@@ -1,6 +1,7 @@
 import { getLevelConfig } from '../../../config/levels.js'
 import type {
   CaseFile,
+  CasePreview,
   DifficultyTier,
   EvidenceItem,
   PriorRuling,
@@ -29,6 +30,19 @@ function readStringArrayField(record: Record<string, unknown>, field: string): s
   }
 
   return value.map((item) => item.trim())
+}
+
+function validatePreview(value: unknown): CasePreview {
+  if (!isRecord(value)) {
+    throw new Error('Case file field "preview" must be an object.')
+  }
+
+  return {
+    summary: readStringField(value, 'summary'),
+    charge: readStringField(value, 'charge'),
+    evidence: readStringField(value, 'evidence'),
+    complication: readStringField(value, 'complication'),
+  }
 }
 
 function readLevel(value: unknown): DifficultyTier {
@@ -132,6 +146,7 @@ export function validateRawCaseFile(input: unknown): RawCaseFile {
     level: readLevel(input.level),
     category: readStringField(input, 'category'),
     summary: readStringField(input, 'summary'),
+    preview: validatePreview(input.preview),
     date: readStringField(input, 'date'),
     location: readStringField(input, 'location'),
     charges: readStringArrayField(input, 'charges'),

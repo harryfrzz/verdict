@@ -3,7 +3,13 @@
   "title": "The Warehouse Fire",
   "level": 2,
   "category": "Arson",
-  "summary": "A warehouse burned four days after its owner increased insurance coverage, prompting charges that the fire was set for financial gain.",
+  "summary": "A business owner is charged after a failing warehouse burns down days before an insurance deadline.",
+  "preview": {
+    "summary": "A business owner is charged after a failing warehouse burns down days before an insurance deadline.",
+    "charge": "A business owner is accused of orchestrating a warehouse fire for financial gain.",
+    "evidence": "The case turns on insurance timing, surveillance gaps, and testimony about the owner’s recent conduct.",
+    "complication": "The building also had electrical faults and multiple people with access knew the site and alarm routines."
+  },
   "date": "2026-02-18",
   "location": "Harbor Industrial District",
   "charges": [

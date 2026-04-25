@@ -3,7 +3,13 @@
   "title": "The Missing Ledger",
   "level": 1,
   "category": "Theft",
-  "summary": "A courthouse clerk is accused of stealing petty cash after a ledger page disappears hours before an internal audit.",
+  "summary": "A clerk is accused of stealing courthouse funds after a ledger page disappears before audit.",
+  "preview": {
+    "summary": "A clerk is accused of stealing courthouse funds after a ledger page disappears before audit.",
+    "charge": "A courthouse clerk is accused of stealing funds from an internal ledger.",
+    "evidence": "The prosecution relies on access records, missing paperwork, and the timing of the vanished ledger entry.",
+    "complication": "The storage cabinet was old, key access was loosely controlled, and the office workflow was poorly documented."
+  },
   "date": "2026-03-11",
   "location": "Briar County Courthouse Records Office",
   "charges": [

@@ -62,6 +62,13 @@ export interface PriorRuling {
   relevance: string
 }
 
+export interface CasePreview {
+  summary: string
+  charge: string
+  evidence: string
+  complication: string
+}
+
 export interface DifficultyConfig {
   level: DifficultyTier
   label: string
@@ -84,6 +91,7 @@ export interface CaseFile {
   level: DifficultyTier
   category: string
   summary: string
+  preview: CasePreview
   date: string
   location: string
   charges: string[]
@@ -115,6 +123,7 @@ export interface ObjectionRecord {
   rationale: string
   outcome?: ObjectionOutcome
   ruling?: string
+  resumeSpeaker?: TurnSpeaker
   timestamp: number
 }
 
@@ -131,6 +140,12 @@ export interface SessionState {
   nextSpeaker: TurnSpeaker
   createdAt: number
   updatedAt: number
+}
+
+export interface SessionMutationResult {
+  session: SessionState
+  appendedTurn?: Turn
+  appendedObjection?: ObjectionRecord
 }
 
 export interface ScoreBreakdown {
