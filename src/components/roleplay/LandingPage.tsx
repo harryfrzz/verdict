@@ -46,7 +46,7 @@ function LandingPage({ levels, onPlay }: LandingPageProps) {
           </p>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
           {levels.map((level, index) => (
             <button
               key={level.id}
@@ -55,26 +55,36 @@ function LandingPage({ levels, onPlay }: LandingPageProps) {
                 setActiveLevel(level)
                 setSelectedDifficulty('Easy')
               }}
-              className="group animate-verdict-float-in overflow-hidden rounded-2xl border border-stone-700/90 bg-stone-950/95 text-left shadow-[0_22px_54px_rgba(0,0,0,0.35)] ring-1 ring-white/[0.03] transition duration-300 hover:-translate-y-1 hover:border-amber-100/45 hover:shadow-[0_28px_70px_rgba(0,0,0,0.46)] active:scale-[0.99]"
+              className="group relative animate-verdict-float-in overflow-hidden rounded-3xl border border-stone-700/80 bg-[linear-gradient(145deg,rgba(28,25,23,0.98),rgba(12,10,9,0.98)_62%,rgba(41,18,18,0.94))] text-left shadow-[0_24px_64px_rgba(0,0,0,0.42)] ring-1 ring-white/[0.04] transition duration-300 hover:-translate-y-1.5 hover:border-amber-100/45 hover:shadow-[0_34px_86px_rgba(0,0,0,0.56)] active:scale-[0.99]"
               style={{ animationDelay: `${index * 70}ms` }}
             >
-              <div className="relative h-40 overflow-hidden bg-stone-900">
+              <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-amber-100/45 to-transparent opacity-0 transition group-hover:opacity-100" />
+              <div className="relative h-48 overflow-hidden bg-stone-900">
                 <img
-                  className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                  className="h-full w-full object-cover transition duration-700 group-hover:scale-110"
                   src={level.thumbnailSrc}
                   alt=""
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-stone-950 via-stone-950/20 to-transparent" />
-                <span className="absolute bottom-3 left-3 rounded-full border border-stone-600 bg-stone-950/80 px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.14em] text-stone-200">
-                  Level {level.level}
-                </span>
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_12%,rgba(251,191,36,0.2),transparent_28%),linear-gradient(180deg,rgba(12,10,9,0.05)_0%,rgba(12,10,9,0.25)_40%,rgba(12,10,9,0.96)_100%)]" />
+                <div className="absolute bottom-4 left-4 right-4">
+                  <p className="text-[11px] uppercase tracking-[0.2em] text-red-200/80">
+                    Mission description
+                  </p>
+                  <h2 className="mt-1 text-xl font-semibold leading-6 tracking-tight text-stone-50">
+                    {level.title}
+                  </h2>
+                </div>
               </div>
               <div className="p-5">
-                <h2 className="text-lg font-semibold leading-6 text-stone-100">{level.title}</h2>
-                <p className="mt-2 text-[11px] uppercase tracking-[0.16em] text-stone-500">
-                  {level.category}
-                </p>
-                <p className="mt-4 min-h-24 text-sm leading-6 text-stone-300">{level.summary}</p>
+                <p className="min-h-24 text-sm leading-6 text-stone-300">{level.summary}</p>
+                <div className="mt-5 flex items-center justify-between gap-3 border-t border-stone-800 pt-4">
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-500">
+                    Easy · Medium · Difficult
+                  </span>
+                  <span className="rounded-full bg-stone-800 px-3 py-1 text-xs font-semibold text-amber-100 transition group-hover:bg-amber-100 group-hover:text-stone-950">
+                    Open
+                  </span>
+                </div>
               </div>
             </button>
           ))}
@@ -82,73 +92,91 @@ function LandingPage({ levels, onPlay }: LandingPageProps) {
       </section>
 
       {activeLevel && activeRange ? (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/75 px-4">
-          <div className="w-full max-w-3xl animate-verdict-float-in overflow-hidden rounded-2xl border border-stone-700/90 bg-stone-950 shadow-[0_32px_90px_rgba(0,0,0,0.62)] ring-1 ring-white/[0.04]">
-            <div className="relative h-44 overflow-hidden bg-stone-900">
-              <img className="h-full w-full object-cover" src={activeLevel.thumbnailSrc} alt="" />
-              <div className="absolute inset-0 bg-gradient-to-t from-stone-950 via-stone-950/45 to-transparent" />
-              <div className="absolute bottom-5 left-5 right-5 flex items-end justify-between gap-4">
-                <div>
-                  <p className="text-[11px] uppercase tracking-[0.18em] text-stone-300">
-                    Level {activeLevel.level} · {activeLevel.category}
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-stone-950/82 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-4xl animate-verdict-float-in overflow-hidden rounded-3xl border border-amber-100/15 bg-[linear-gradient(145deg,rgba(28,25,23,0.98),rgba(12,10,9,0.98)_58%,rgba(41,18,18,0.96))] shadow-[0_34px_110px_rgba(0,0,0,0.7)] ring-1 ring-white/[0.06]">
+            <div className="relative min-h-64 overflow-hidden bg-stone-900">
+              <img
+                className="absolute inset-0 h-full w-full object-cover transition duration-500"
+                src={activeLevel.thumbnailSrc}
+                alt=""
+              />
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_12%,rgba(251,191,36,0.22),transparent_28%),linear-gradient(90deg,rgba(12,10,9,0.96)_0%,rgba(12,10,9,0.72)_42%,rgba(12,10,9,0.28)_100%),linear-gradient(180deg,transparent_0%,rgba(12,10,9,0.95)_100%)]" />
+              <div className="relative z-10 flex min-h-64 flex-col justify-between p-6 sm:p-7">
+                <div className="flex items-start justify-between gap-4">
+                  <span className="rounded-full border border-amber-200/30 bg-amber-200/12 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-100">
+                    Mission briefing
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setActiveLevel(null)}
+                    className="rounded-full border border-stone-500/60 bg-stone-950/70 px-4 py-2 text-sm font-medium text-stone-200 transition hover:border-amber-100/60 hover:bg-stone-900 hover:text-stone-50"
+                  >
+                    Close
+                  </button>
+                </div>
+                <div className="max-w-2xl">
+                  <p className="text-[11px] uppercase tracking-[0.22em] text-red-200/80">
+                    Mission Briefing
                   </p>
-                  <h2 className="mt-2 text-2xl font-semibold text-stone-100">
+                  <h2 className="mt-2 text-3xl font-semibold tracking-tight text-stone-50 sm:text-4xl">
                     {activeLevel.title}
                   </h2>
+                  <p className="mt-3 text-sm leading-6 text-stone-300">{activeLevel.summary}</p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setActiveLevel(null)}
-                  className="rounded-lg border border-stone-600 bg-stone-950/78 px-3 py-2 text-sm text-stone-200 transition hover:border-stone-400 hover:text-stone-50"
-                >
-                  Close
-                </button>
               </div>
             </div>
-            <div className="p-5">
-            <div className="grid grid-cols-3 gap-2">
-              {activeLevel.ranges.map((range) => (
-                <button
-                  key={range.difficulty}
-                  type="button"
-                  onClick={() => setSelectedDifficulty(range.difficulty)}
-                  className={`rounded-xl border px-3 py-2 text-sm font-medium transition ${
-                    selectedDifficulty === range.difficulty
-                      ? 'border-amber-200 bg-amber-200 text-stone-950'
-                      : 'border-stone-700 bg-stone-900 text-stone-300 hover:border-stone-500'
-                  }`}
-                >
-                  {range.difficulty}
-                </button>
-              ))}
-            </div>
+            <div className="p-5 sm:p-6">
+              <div className="grid grid-cols-3 gap-2 rounded-2xl border border-stone-700/70 bg-stone-950/55 p-1.5">
+                {activeLevel.ranges.map((range) => (
+                  <button
+                    key={range.difficulty}
+                    type="button"
+                    onClick={() => setSelectedDifficulty(range.difficulty)}
+                    className={`rounded-xl border px-3 py-2.5 text-sm font-semibold transition ${
+                      selectedDifficulty === range.difficulty
+                        ? 'border-amber-100 bg-amber-100 text-stone-950 shadow-[0_10px_28px_rgba(251,191,36,0.18)]'
+                        : 'border-transparent bg-transparent text-stone-400 hover:bg-stone-800/80 hover:text-stone-100'
+                    }`}
+                  >
+                    {range.difficulty}
+                  </button>
+                ))}
+              </div>
 
-            <div className="mt-5 grid gap-3 rounded-xl border border-stone-800 bg-stone-900 p-4">
-              <div>
-                <p className="text-[11px] uppercase tracking-[0.16em] text-stone-500">Charge</p>
-                <p className="mt-1 text-sm leading-6 text-stone-200">{activeLevel.charge}</p>
+              <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                <div className="rounded-2xl border border-red-300/15 bg-red-950/20 p-4">
+                  <p className="text-[11px] uppercase tracking-[0.16em] text-red-200/70">Charge</p>
+                  <p className="mt-2 text-sm leading-6 text-stone-100">{activeLevel.charge}</p>
+                </div>
+                <div className="rounded-2xl border border-amber-200/15 bg-amber-950/15 p-4">
+                  <p className="text-[11px] uppercase tracking-[0.16em] text-amber-100/70">
+                    Evidence
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-stone-200">{activeLevel.evidence}</p>
+                </div>
+                <div className="rounded-2xl border border-violet-200/15 bg-violet-950/15 p-4">
+                  <p className="text-[11px] uppercase tracking-[0.16em] text-violet-100/70">
+                    Complication
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-stone-200">
+                    {activeLevel.complication}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-stone-600/60 bg-stone-900/70 p-4">
+                  <p className="text-[11px] uppercase tracking-[0.16em] text-stone-400">
+                    Difficulty
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-stone-200">{activeRange.challenge}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-[11px] uppercase tracking-[0.16em] text-stone-500">Evidence</p>
-                <p className="mt-1 text-sm leading-6 text-stone-300">{activeLevel.evidence}</p>
-              </div>
-              <div>
-                <p className="text-[11px] uppercase tracking-[0.16em] text-stone-500">Complication</p>
-                <p className="mt-1 text-sm leading-6 text-stone-300">{activeLevel.complication}</p>
-              </div>
-              <div>
-                <p className="text-[11px] uppercase tracking-[0.16em] text-stone-500">Difficulty</p>
-                <p className="mt-1 text-sm leading-6 text-stone-300">{activeRange.challenge}</p>
-              </div>
-            </div>
 
-            <button
-              type="button"
-              onClick={() => onPlay(activeLevel, activeRange)}
-              className="mt-5 w-full rounded-xl bg-amber-200 px-4 py-3 text-sm font-semibold text-stone-950 transition hover:bg-amber-100 active:scale-[0.99]"
-            >
-              Play
-            </button>
+              <button
+                type="button"
+                onClick={() => onPlay(activeLevel, activeRange)}
+                className="mt-5 w-full rounded-2xl bg-gradient-to-r from-amber-100 to-orange-200 px-4 py-3.5 text-sm font-bold text-stone-950 shadow-[0_16px_42px_rgba(251,191,36,0.2)] transition hover:from-amber-50 hover:to-orange-100 active:scale-[0.99]"
+              >
+                Begin Mission
+              </button>
             </div>
           </div>
         </div>

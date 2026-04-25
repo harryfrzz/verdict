@@ -32,7 +32,7 @@ const characterPositions: Record<
     imageClassName: 'h-96',
   },
   advocate: {
-    className: 'left-10 top-[260px] w-64',
+    className: 'left-10 top-[260px] w-82',
     imageClassName: 'h-96',
   },
 }
@@ -46,6 +46,8 @@ function CharacterSetup({
     <section className="relative mx-auto h-[720px] w-[1280px] max-w-none shrink-0">
       {characters.map((character, index) => {
         const position = characterPositions[character.id]
+        const isSelectable = character.id === 'accuse' || character.id === 'advocate'
+        const isSelected = userSide === character.id
 
         return (
           <article
@@ -54,40 +56,64 @@ function CharacterSetup({
             style={{ animationDelay: `${index * 55}ms` }}
           >
             <div className="relative flex w-full items-end justify-center">
+              <div
+                className={`absolute bottom-3 h-24 w-4/5 rounded-full blur-2xl transition duration-300 group-hover:opacity-80 ${
+                  isSelected ? 'bg-amber-200/28 opacity-100' : 'bg-black/45 opacity-70'
+                }`}
+              />
+              <div className="absolute bottom-0 h-7 w-4/5 rounded-[100%] border border-stone-600/45 bg-stone-950/42 shadow-[0_18px_34px_rgba(0,0,0,0.42)]" />
               <img
-                className={`relative z-10 w-full object-contain object-bottom drop-shadow-[0_24px_28px_rgba(0,0,0,0.56)] transition duration-300 ease-out group-hover:-translate-y-1 group-hover:scale-[1.045] ${position.imageClassName}`}
+                className={`relative z-10 w-full object-contain object-bottom drop-shadow-[0_26px_32px_rgba(0,0,0,0.62)] transition duration-300 ease-out group-hover:-translate-y-1 group-hover:scale-[1.045] ${position.imageClassName}`}
                 src={character.imageSrc}
                 alt={character.name}
               />
             </div>
 
-            <div className="relative z-20 -mt-2 w-full rounded-md border border-stone-700/90 bg-stone-950/96 px-3 py-2 shadow-[0_18px_38px_rgba(0,0,0,0.42)] transition duration-200 group-hover:border-stone-500">
-              <div className="flex items-center gap-2">
+            <div
+              className={`relative z-20 -mt-2 w-70 overflow-hidden rounded-2xl border px-3 py-3 shadow-[0_20px_46px_rgba(0,0,0,0.46)] backdrop-blur-sm transition duration-200 ${
+                isSelected
+                  ? 'border-amber-100/70 bg-amber-100/12 ring-1 ring-amber-100/35'
+                  : 'border-stone-700/90 bg-stone-950/92 group-hover:border-stone-500'
+              }`}
+            >
+              <div className="pointer-events-none absolute inset-x-4 top-0 h-px bg-gradient-to-r from-transparent via-amber-100/40 to-transparent" />
+              <div className="flex items-center gap-3">
                 <span
-                  className={`h-2.5 w-2.5 shrink-0 rounded-full shadow-[0_0_14px_currentColor] ${character.accentClass}`}
+                  className={`h-3 w-3 shrink-0 rounded-full shadow-[0_0_16px_currentColor] ${character.accentClass}`}
                 />
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-stone-100">{character.name}</p>
+                  <p className="truncate text-base font-semibold tracking-wide text-stone-50">
+                    {character.name}
+                  </p>
                   <p className="truncate text-[10px] uppercase tracking-[0.14em] text-stone-400">
                     {character.title}
                   </p>
                 </div>
+                {isSelected ? (
+                  <span className="ml-auto rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-stone-950">
+                    Active
+                  </span>
+                ) : null}
               </div>
-              {character.id === 'accuse' || character.id === 'advocate' ? (
-                <div className="mt-2">
+              {isSelectable ? (
+                <div className="mt-3">
                   <button
                     type="button"
                     onClick={() => onUserSideChange(character.id as 'accuse' | 'advocate')}
-                    className={`w-full rounded-md border px-2 py-1.5 text-xs font-medium transition ${
-                      userSide === character.id
-                        ? 'border-amber-200 bg-amber-200 text-stone-950'
+                    className={`w-full rounded-xl border px-3 py-2 text-xs font-bold uppercase tracking-[0.14em] transition ${
+                      isSelected
+                        ? 'border-amber-100 bg-amber-100 text-stone-950 shadow-[0_12px_28px_rgba(251,191,36,0.18)]'
                         : 'border-stone-700 bg-stone-900 text-stone-300 hover:border-stone-500'
                     }`}
                   >
-                    {userSide === character.id ? 'User controlled' : 'Play this side'}
+                    {isSelected ? 'User controlled' : 'Play this side'}
                   </button>
                 </div>
-              ) : null}
+              ) : (
+                <div className="mt-3 rounded-xl border border-stone-800 bg-stone-900/70 px-3 py-2 text-center text-[10px] font-semibold uppercase tracking-[0.14em] text-stone-500">
+                  Court role
+                </div>
+              )}
             </div>
           </article>
         )

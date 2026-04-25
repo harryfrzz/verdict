@@ -57,7 +57,10 @@ function backendRoleForUserSide(userSide: UserSide): 'prosecution' | 'defense' {
   return userSide === 'accuse' ? 'prosecution' : 'defense'
 }
 
-function buildRoleMap(session: ApiSession | null, userSide: UserSide): Record<'player' | 'lawyer' | 'judge' | 'clerk', DisplayRole> {
+function buildRoleMap(
+  session: ApiSession | null,
+  userSide: UserSide,
+): Record<'player' | 'lawyer' | 'judge' | 'clerk', DisplayRole> {
   const playerRole = session?.playerRole ?? backendRoleForUserSide(userSide)
   const aiRole = session?.aiRole ?? (playerRole === 'prosecution' ? 'defense' : 'prosecution')
 
@@ -426,15 +429,19 @@ function App() {
                 secondaryActionLabel={
                   session?.awaitingPlayerInput && !playerTurnUnlocked
                     ? 'Next'
-                    : session?.awaitingPlayerInput && playerTurnUnlocked && session?.phase !== 'verdict'
+                    : session?.awaitingPlayerInput &&
+                        playerTurnUnlocked &&
+                        session?.phase !== 'verdict'
                       ? 'Request Verdict'
-                    : undefined
+                      : undefined
                 }
                 isBusy={isWorking}
               />
               {parsedVerdict ? (
                 <section className="mx-auto mt-4 max-w-4xl animate-verdict-float-in rounded-xl border border-stone-700 bg-stone-950/96 p-5 shadow-[0_22px_70px_rgba(0,0,0,0.32)]">
-                  <p className="text-[11px] uppercase tracking-[0.18em] text-amber-100/75">Verdict</p>
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-amber-100/75">
+                    Verdict
+                  </p>
                   <h2 className="mt-2 text-2xl font-semibold text-stone-100">
                     {parsedVerdict.outcome ?? 'Verdict returned'}
                   </h2>
@@ -442,23 +449,78 @@ function App() {
                     <p className="mt-3 text-sm leading-6 text-stone-300">{parsedVerdict.summary}</p>
                   ) : null}
                   {parsedVerdict.reasoning ? (
-                    <p className="mt-3 text-sm leading-6 text-stone-400">{parsedVerdict.reasoning}</p>
+                    <p className="mt-3 text-sm leading-6 text-stone-400">
+                      {parsedVerdict.reasoning}
+                    </p>
                   ) : null}
                 </section>
               ) : null}
             </div>
           ) : !courtOpen && selectedLevel ? (
             <div className="relative w-full">
-              {selectedRange ? (
-                <div className="absolute left-0 top-4 z-20 rounded-md border border-stone-700 bg-stone-950/95 px-4 py-3 shadow-[0_18px_42px_rgba(0,0,0,0.32)]">
-                  <p className="text-[11px] uppercase tracking-[0.18em] text-stone-500">
-                    Selected case
-                  </p>
-                  <p className="mt-1 text-sm font-semibold text-stone-100">
-                    {selectedLevel.title} · {selectedRange.difficulty}
-                  </p>
+              <div className="absolute left-0 top-4 z-30 flex max-w-2xl items-stretch gap-3">
+                <button
+                  type="button"
+                  aria-label="Go home"
+                  onClick={resetCourt}
+                  className="flex h-16 w-14 shrink-0 items-center justify-center rounded-2xl border border-amber-100/20 bg-stone-950/82 text-stone-100 shadow-[0_18px_48px_rgba(0,0,0,0.42)] backdrop-blur-sm transition hover:-translate-y-0.5 hover:border-amber-100/45 hover:bg-stone-900/90 hover:text-amber-100"
+                >
+                  <svg
+                    className="h-6 w-6"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="m3 11 9-8 9 8" />
+                    <path d="M5 10v10h14V10" />
+                    <path d="M9 20v-6h6v6" />
+                  </svg>
+                </button>
+                {selectedRange ? (
+                  <div className="flex h-16 min-w-0 items-center rounded-2xl border border-amber-100/15 bg-[linear-gradient(145deg,rgba(28,25,23,0.88),rgba(12,10,9,0.86))] px-4 shadow-[0_18px_48px_rgba(0,0,0,0.42)] backdrop-blur-sm">
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-100/75">
+                        {selectedRange.difficulty} Mission
+                      </p>
+                      <p className="mt-1 truncate text-sm font-semibold text-stone-50">
+                        {selectedLevel.title}
+                      </p>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+              <form
+                className="absolute right-0 top-4 z-30 flex h-16 w-full max-w-2xl animate-verdict-float-in items-stretch gap-3"
+                onSubmit={(event) => {
+                  event.preventDefault()
+                  void openCourt()
+                }}
+              >
+                <div className="flex min-w-0 flex-1 items-center rounded-2xl border border-amber-100/15 bg-[linear-gradient(145deg,rgba(28,25,23,0.96),rgba(12,10,9,0.96)_58%,rgba(41,18,18,0.9))] px-4 py-2 shadow-[0_24px_74px_rgba(0,0,0,0.58)] ring-1 ring-white/[0.04] backdrop-blur-sm">
+                  <label className="min-w-0 flex-1">
+                    <span className="mb-0.5 block text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-100/70">
+                      Mission Description
+                    </span>
+                    <input
+                      type="text"
+                      readOnly
+                      value={selectedRange?.template ?? selectedLevel.summary}
+                      className="block h-8 w-full whitespace-nowrap rounded-xl border-transparent bg-stone-900/70 px-3 text-sm text-stone-100 outline-none transition focus:ring-amber-100/35"
+                    />
+                  </label>
                 </div>
-              ) : null}
+                <button
+                  type="submit"
+                  disabled={isWorking}
+                  className="h-16 shrink-0 rounded-2xl border border-amber-50/45 bg-gradient-to-r from-amber-100 to-orange-200 px-6 text-sm font-bold text-stone-950 shadow-[0_18px_48px_rgba(251,191,36,0.24)] transition hover:-translate-y-0.5 hover:from-amber-50 hover:to-orange-100 disabled:cursor-not-allowed disabled:opacity-70 active:scale-[0.98]"
+                >
+                  {isWorking ? 'Opening...' : 'Begin Mission'}
+                </button>
+              </form>
               <CharacterSetup
                 characters={setupCharacters}
                 userSide={userSide}
@@ -497,7 +559,7 @@ function App() {
                     Transcript
                   </p>
                   <p className="truncate text-sm font-semibold text-stone-100">
-                    Live Backend Session
+                    {selectedLevel?.title ?? 'Live Backend Session'}
                   </p>
                 </div>
                 <span className="rounded-full border border-stone-700 bg-stone-950 px-3 py-1 text-[11px] uppercase tracking-[0.16em] text-stone-300">
@@ -535,29 +597,6 @@ function App() {
               </div>
             </details>
           </div>
-        </div>
-      ) : selectedLevel ? (
-        <div className="fixed inset-x-0 bottom-6 z-20 flex justify-center px-4">
-          <form
-            className="w-full max-w-3xl animate-verdict-float-in rounded-lg border border-stone-700 bg-stone-950/98 p-2 shadow-[0_18px_54px_rgba(0,0,0,0.48)]"
-            onSubmit={(event) => {
-              event.preventDefault()
-              void openCourt()
-            }}
-          >
-            <div className="flex items-center gap-2 rounded-md bg-stone-900 p-1.5">
-              <div className="min-w-0 flex-1 rounded-md px-3 py-2.5 text-sm text-stone-200">
-                {selectedRange?.template ?? selectedLevel.summary}
-              </div>
-              <button
-                type="submit"
-                disabled={isWorking}
-                className="shrink-0 rounded-md bg-amber-200 px-4 py-2.5 text-sm font-semibold text-stone-950 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:bg-stone-400 active:scale-[0.98]"
-              >
-                {isWorking ? 'Opening...' : 'Open Court'}
-              </button>
-            </div>
-          </form>
         </div>
       ) : null}
 
