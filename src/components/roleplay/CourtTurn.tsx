@@ -1,3 +1,5 @@
+import { useRef, useState } from 'react'
+
 interface CourtTurnProps {
   name: string
   title: string
@@ -9,6 +11,7 @@ interface CourtTurnProps {
   userInput?: string
   onUserInputChange?: (value: string) => void
   onUserSubmit?: () => void
+  onTranscribeAudio?: (blob: Blob) => Promise<string>
   secondaryActionLabel?: string
   onSecondaryAction?: () => void
   isBusy?: boolean
@@ -25,6 +28,7 @@ function CourtTurn({
   userInput = '',
   onUserInputChange,
   onUserSubmit,
+  onTranscribeAudio,
   secondaryActionLabel,
   onSecondaryAction,
   isBusy = false,
@@ -33,6 +37,52 @@ function CourtTurn({
   const textAlign = side === 'left' ? 'text-left items-start' : 'text-right items-end'
   const slideAnimation =
     side === 'left' ? 'animate-verdict-slide-in-left' : 'animate-verdict-slide-in-right'
+
+  const [isRecording, setIsRecording] = useState(false)
+  const [isTranscribing, setIsTranscribing] = useState(false)
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+
+  async function handleVoiceClick() {
+    if (isRecording) {
+      mediaRecorderRef.current?.stop()
+      return
+    }
+
+    let stream: MediaStream
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+    } catch {
+      return
+    }
+
+    const chunks: Blob[] = []
+    const recorder = new MediaRecorder(stream)
+
+    recorder.ondataavailable = (e) => {
+      if (e.data.size > 0) chunks.push(e.data)
+    }
+
+    recorder.onstop = async () => {
+      setIsRecording(false)
+      stream.getTracks().forEach((t) => t.stop())
+
+      if (!onTranscribeAudio) return
+      const blob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' })
+      setIsTranscribing(true)
+      try {
+        const text = await onTranscribeAudio(blob)
+        if (text) onUserInputChange?.(text)
+      } finally {
+        setIsTranscribing(false)
+      }
+    }
+
+    mediaRecorderRef.current = recorder
+    recorder.start()
+    setIsRecording(true)
+  }
+
+  const voiceButtonDisabled = isBusy || isTranscribing || !onTranscribeAudio
 
   return (
     <div className={`flex min-h-[calc(100vh-8rem)] w-full items-center ${wrapperPosition}`}>
@@ -85,25 +135,36 @@ function CourtTurn({
                   />
                   <button
                     type="button"
-                    aria-label="Voice input placeholder"
-                    title="Voice input"
-                    className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-stone-300 bg-white text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
+                    aria-label={isRecording ? 'Stop recording' : isTranscribing ? 'Transcribing…' : 'Record voice input'}
+                    title={isRecording ? 'Stop recording' : 'Voice input'}
+                    disabled={voiceButtonDisabled && !isRecording}
+                    onClick={() => { void handleVoiceClick() }}
+                    className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border transition ${
+                      isRecording
+                        ? 'border-red-400 bg-red-50 text-red-500 hover:border-red-600 hover:text-red-600'
+                        : isTranscribing
+                          ? 'border-stone-200 bg-stone-100 text-stone-400 cursor-wait'
+                          : 'border-stone-300 bg-white text-stone-700 hover:border-stone-950 hover:text-stone-950 disabled:cursor-not-allowed disabled:opacity-40'
+                    }`}
                   >
-                    <svg
-                      width="18"
-                      height="18"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      aria-hidden="true"
-                    >
-                      <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
-                      <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-                      <path d="M12 19v3" />
-                    </svg>
+                    {isRecording ? (
+                      // Stop icon
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                        <rect x="4" y="4" width="16" height="16" rx="2" />
+                      </svg>
+                    ) : isTranscribing ? (
+                      // Spinner
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true" className="animate-spin">
+                        <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+                      </svg>
+                    ) : (
+                      // Mic icon
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+                        <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                        <path d="M12 19v3" />
+                      </svg>
+                    )}
                   </button>
                 </div>
               </label>
