@@ -23,17 +23,14 @@ function TranscriptFeed({ roles, turns }: TranscriptFeedProps) {
       <div className="space-y-3">
         {turns.map((turn, index) => {
           const role = roleById[turn.agentId]
-          const speaker = turn.agentId === 'arbiter' ? 'ARBITER' : role?.name ?? 'CLERK'
-          const accentClass =
-            turn.agentId === 'arbiter' ? 'bg-amber-200' : role?.accentClass ?? 'bg-amber-300'
 
           return (
             <TranscriptEntry
               key={`${turn.agentId}-${index}`}
-              speaker={speaker}
+              speaker={role.name}
               title={turn.phase}
               content={turn.content}
-              accentClass={accentClass}
+              accentClass={role.accentClass}
             />
           )
         })}
