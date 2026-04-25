@@ -8,9 +8,8 @@ export interface SetupCharacter {
 
 interface CharacterSetupProps {
   characters: SetupCharacter[]
-  modelAssignments: Record<string, string>
-  modelOptions: string[]
-  onModelChange: (characterId: string, model: string) => void
+  userSide: 'accuse' | 'advocate'
+  onUserSideChange: (characterId: 'accuse' | 'advocate') => void
 }
 
 const characterPositions: Record<
@@ -36,21 +35,12 @@ const characterPositions: Record<
     className: 'left-10 top-[260px] w-64',
     imageClassName: 'h-96',
   },
-  chronicle: {
-    className: 'left-[835px] top-20 w-52',
-    imageClassName: 'h-72',
-  },
-  ethos: {
-    className: 'left-[235px] top-24 w-52',
-    imageClassName: 'h-72',
-  },
 }
 
 function CharacterSetup({
   characters,
-  modelAssignments,
-  modelOptions,
-  onModelChange,
+  userSide,
+  onUserSideChange,
 }: CharacterSetupProps) {
   return (
     <section className="relative mx-auto h-[720px] w-[1280px] max-w-none shrink-0">
@@ -83,24 +73,21 @@ function CharacterSetup({
                   </p>
                 </div>
               </div>
-              {character.id === 'accused' ? (
-                <div className="mt-2 hidden rounded-md border border-stone-800 bg-stone-900 px-2 py-1.5 text-xs text-stone-500">
-                  No LLM 
+              {character.id === 'accuse' || character.id === 'advocate' ? (
+                <div className="mt-2">
+                  <button
+                    type="button"
+                    onClick={() => onUserSideChange(character.id as 'accuse' | 'advocate')}
+                    className={`w-full rounded-md border px-2 py-1.5 text-xs font-medium transition ${
+                      userSide === character.id
+                        ? 'border-amber-200 bg-amber-200 text-stone-950'
+                        : 'border-stone-700 bg-stone-900 text-stone-300 hover:border-stone-500'
+                    }`}
+                  >
+                    {userSide === character.id ? 'User controlled' : 'Play this side'}
+                  </button>
                 </div>
-              ) : (
-                <select
-                  aria-label={`${character.name} LLM`}
-                  value={modelAssignments[character.id]}
-                  onChange={(event) => onModelChange(character.id, event.target.value)}
-                  className="mt-2 w-full cursor-pointer rounded-md border border-stone-700 bg-stone-900 px-2 py-1.5 text-xs text-stone-100 outline-none transition hover:border-stone-500 focus:border-amber-200"
-                >
-                  {modelOptions.map((model) => (
-                    <option key={model} value={model}>
-                      {model}
-                    </option>
-                  ))}
-                </select>
-              )}
+              ) : null}
             </div>
           </article>
         )

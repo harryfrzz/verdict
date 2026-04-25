@@ -5,9 +5,24 @@ interface CourtTurnProps {
   side: 'left' | 'right'
   text: string
   accentClass: string
+  isUserTurn?: boolean
+  userInput?: string
+  onUserInputChange?: (value: string) => void
+  onUserSubmit?: () => void
 }
 
-function CourtTurn({ name, title, imageSrc, side, text, accentClass }: CourtTurnProps) {
+function CourtTurn({
+  name,
+  title,
+  imageSrc,
+  side,
+  text,
+  accentClass,
+  isUserTurn = false,
+  userInput = '',
+  onUserInputChange,
+  onUserSubmit,
+}: CourtTurnProps) {
   const wrapperPosition = side === 'left' ? 'justify-start' : 'justify-end'
   const textAlign = side === 'left' ? 'text-left items-start' : 'text-right items-end'
   const slideAnimation =
@@ -42,9 +57,63 @@ function CourtTurn({ name, title, imageSrc, side, text, accentClass }: CourtTurn
               </div>
             </div>
           </div>
-          <div className="rounded-md border border-white/12 bg-stone-50 px-5 py-4 text-base font-medium leading-7 text-stone-950 shadow-[0_22px_70px_rgba(0,0,0,0.36)]">
-            {text}
-          </div>
+          {isUserTurn ? (
+            <form
+              className="rounded-xl w-120 border border-amber-200/45 bg-stone-50 p-4 shadow-[0_24px_80px_rgba(0,0,0,0.42)]"
+              onSubmit={(event) => {
+                event.preventDefault()
+                onUserSubmit?.()
+              }}
+            >
+              <label className="block">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-500">
+                  Your argument
+                </span>
+                <div className="mt-2 flex gap-2">
+                  <textarea
+                    value={userInput}
+                    onChange={(event) => onUserInputChange?.(event.target.value)}
+                    rows={7}
+                    placeholder={text}
+                    className="block h-30 w-full resize-none rounded-lg border border-stone-300 bg-white px-4 py-3 text-sm leading-6 text-stone-950 outline-none transition placeholder:text-stone-400 focus:border-stone-950"
+                  />
+                  <button
+                    type="button"
+                    aria-label="Voice input placeholder"
+                    title="Voice input"
+                    className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-stone-300 bg-white text-stone-700 transition hover:border-stone-950 hover:text-stone-950"
+                  >
+                    <svg
+                      width="18"
+                      height="18"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+                      <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                      <path d="M12 19v3" />
+                    </svg>
+                  </button>
+                </div>
+              </label>
+              <button
+                type="submit"
+                disabled={userInput.trim().length === 0}
+                className="mt-3 w-full rounded-lg bg-stone-950 px-4 py-3 text-sm font-semibold text-stone-50 transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:bg-stone-300 disabled:text-stone-500"
+              >
+                Submit Argument
+              </button>
+            </form>
+          ) : (
+            <div className="rounded-md border border-white/12 bg-stone-50 px-5 py-4 text-base font-medium leading-7 text-stone-950 shadow-[0_22px_70px_rgba(0,0,0,0.36)]">
+              {text}
+            </div>
+          )}
         </div>
       </div>
     </div>

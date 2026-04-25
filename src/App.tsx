@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import CharacterSetup, { type SetupCharacter } from './components/roleplay/CharacterSetup'
 import CourtTurn from './components/roleplay/CourtTurn'
+import LandingPage, { type CaseDifficultyRange, type CaseLevel } from './components/roleplay/LandingPage'
 import sessionData from './data/courtSession.json'
 
 type AgentId = 'accuse' | 'advocate' | 'chronicle' | 'ethos'
@@ -81,45 +82,170 @@ const setupCharacters: SetupCharacter[] = [
     imageSrc: '/lawyer_2.png',
     accentClass: 'bg-violet-400',
   },
-  {
-    id: 'chronicle',
-    name: 'CHRONICLE',
-    title: 'Witness I',
-    imageSrc: '/witness_1_chronicle.png',
-    accentClass: 'bg-sky-400',
-  },
-  {
-    id: 'ethos',
-    name: 'ETHOS',
-    title: 'Witness II',
-    imageSrc: '/witness_2_ethos.png',
-    accentClass: 'bg-emerald-400',
-  },
 ]
 
-const modelOptions = ['gpt-4.1-mini', 'gpt-4.1', 'gpt-5-mini', 'gpt-5']
-
-const defaultModelAssignments = Object.fromEntries(
-  setupCharacters.map((character) => [character.id, modelOptions[0]]),
-)
+const caseLevels: CaseLevel[] = [
+  {
+    id: 'missing-ledger',
+    level: 1,
+    title: 'The Missing Ledger',
+    category: 'Theft',
+    thumbnailSrc: '/witness_1_chronicle.png',
+    summary:
+      'A clerk is accused of stealing courthouse funds after a ledger page disappears before audit.',
+    charge: 'A courthouse clerk is accused of stealing funds from an internal ledger.',
+    evidence:
+      'The prosecution relies on access records, missing paperwork, and the timing of the vanished ledger entry.',
+    complication:
+      'The storage cabinet was old, key access was loosely controlled, and the office workflow was poorly documented.',
+    ranges: [
+      {
+        difficulty: 'Easy',
+        challenge: 'A relatively direct fact pattern with limited ambiguity and fewer competing explanations.',
+        template:
+          'A courthouse clerk is accused of stealing petty funds after a ledger page disappears before audit. The evidence turns on access, motive, and whether the cabinet was secure.',
+      },
+      {
+        difficulty: 'Medium',
+        challenge: 'Adds conflicting access histories, supervisor involvement, and more room for reasonable doubt.',
+        template:
+          'A courthouse clerk is accused of coordinated embezzlement from filing fees. Missing ledger pages align with deposits they handled, but a supervisor also had override access.',
+      },
+      {
+        difficulty: 'Difficult',
+        challenge: 'Introduces audit-log disputes, shared credentials, and a harder causation trail to argue through.',
+        template:
+          'A courthouse clerk is accused of destroying financial records to conceal larger fraud. Audit logs point to their terminal, but login sharing was common in the office.',
+      },
+    ],
+  },
+  {
+    id: 'warehouse-fire',
+    level: 2,
+    title: 'The Warehouse Fire',
+    category: 'Arson',
+    thumbnailSrc: '/lawyer_1.png',
+    summary:
+      'A business owner is charged after a failing warehouse burns down days before an insurance deadline.',
+    charge: 'A business owner is accused of orchestrating a warehouse fire for financial gain.',
+    evidence:
+      'The case turns on insurance timing, surveillance gaps, and testimony about the owner’s recent conduct.',
+    complication:
+      'The building also had electrical faults and multiple people with access knew the site and alarm routines.',
+    ranges: [
+      {
+        difficulty: 'Easy',
+        challenge: 'The motive trail is clear and the fact pattern is mostly linear.',
+        template:
+          'A business owner is charged with insurance-motivated arson after a failing warehouse burns down. Coverage was increased shortly before the fire, but electrical faults were documented.',
+      },
+      {
+        difficulty: 'Medium',
+        challenge: 'The timeline gets murkier and an alternate suspect has credible motive and access.',
+        template:
+          'A business owner is charged with arson after a warehouse burns down days before an insurance deadline. Security footage is incomplete and a former employee had threatened revenge.',
+      },
+      {
+        difficulty: 'Difficult',
+        challenge: 'This version relies on ambiguous messages and competing inferences from circumstantial evidence.',
+        template:
+          'A business owner is accused of conspiring to burn a warehouse and falsify insurance claims. Messages mention removing inventory, but may refer to a planned renovation.',
+      },
+    ],
+  },
+  {
+    id: 'algorithmic-crash',
+    level: 3,
+    title: 'The Algorithmic Crash',
+    category: 'Corporate negligence',
+    thumbnailSrc: '/bg_courtroom.png',
+    summary:
+      'A transport AI caused a fatal crash after executives allegedly ignored safety warnings.',
+    charge: 'Executives are accused of criminal negligence after deploying unsafe transport AI.',
+    evidence:
+      'Internal testing, launch approvals, and known braking failures form the backbone of the prosecution case.',
+    complication:
+      'Responsibility is split across executives, engineers, regulators, and outside sensor dependencies.',
+    ranges: [
+      {
+        difficulty: 'Easy',
+        challenge: 'The warning signs are visible and the defense has fewer technical escape routes.',
+        template:
+          'A transport AI caused a fatal crash after internal tests showed braking failures. Executives launched after engineers said a patch had resolved the issue.',
+      },
+      {
+        difficulty: 'Medium',
+        challenge: 'Regulatory compliance and incomplete reproduction of the bug make negligence less straightforward.',
+        template:
+          'A transport AI caused a fatal crash after executives received unresolved safety warnings. The case turns on recklessness, regulatory compliance, and foreseeability.',
+      },
+      {
+        difficulty: 'Difficult',
+        challenge: 'This version forces both sides to argue around third-party dependencies and diluted accountability.',
+        template:
+          'A transport AI caused a fatal crash after a risk report predicted the same crash pattern under rare conditions. The defense argues third-party sensor data caused the failure.',
+      },
+    ],
+  },
+  {
+    id: 'state-secret',
+    level: 4,
+    title: 'The State Secret',
+    category: 'Espionage',
+    thumbnailSrc: '/judge.png',
+    summary:
+      'A scientist leaked classified research, claiming the public had a right to know about hidden risks.',
+    charge: 'A scientist is accused of illegal disclosure of classified national-security research.',
+    evidence:
+      'The prosecution relies on the scientist’s admissions, document tracing, and downstream exposure of classified material.',
+    complication:
+      'The defense argues public-interest necessity and disputes whether downstream foreign access should be attributed to the scientist.',
+    ranges: [
+      {
+        difficulty: 'Easy',
+        challenge: 'The admission is clear, but the public-interest defense still creates a moral gray area.',
+        template:
+          'A scientist admits leaking classified research to a journalist. The defense argues the leak exposed a concealed safety risk the public had a right to know.',
+      },
+      {
+        difficulty: 'Medium',
+        challenge: 'The link between initial disclosure and foreign access becomes harder to assign cleanly.',
+        template:
+          'A scientist is accused of espionage after leaked classified research reached foreign analysts. The scientist claims they only disclosed the material to a domestic journalist.',
+      },
+      {
+        difficulty: 'Difficult',
+        challenge: 'This version adds ambiguous encrypted coordination evidence and a sharper dispute over intent.',
+        template:
+          'A scientist is accused of intentionally compromising national-security research. Encrypted messages suggest coordination before the leak, but may be privileged strategy notes.',
+      },
+    ],
+  },
+]
 
 function App() {
   const turns = sessionData.turns as SessionTurn[]
   const [courtOpen, setCourtOpen] = useState(false)
   const [activeIndex, setActiveIndex] = useState<number>(-1)
   const [casePrompt, setCasePrompt] = useState('')
+  const [userTurnInput, setUserTurnInput] = useState('')
+  const [userTurnResponses, setUserTurnResponses] = useState<Record<string, string>>({})
+  const [selectedLevel, setSelectedLevel] = useState<CaseLevel | null>(null)
+  const [selectedRange, setSelectedRange] = useState<CaseDifficultyRange | null>(null)
   const [judgeControlsOpen, setJudgeControlsOpen] = useState(false)
+  const [userSide, setUserSide] = useState<'accuse' | 'advocate'>('advocate')
   const judgeControlsRef = useRef<HTMLDivElement | null>(null)
-  const [modelAssignments, setModelAssignments] = useState<Record<string, string>>(
-    defaultModelAssignments,
-  )
 
   const resetCourt = () => {
     setCourtOpen(false)
     setActiveIndex(-1)
     setCasePrompt('')
+    setUserTurnInput('')
+    setUserTurnResponses({})
+    setSelectedLevel(null)
+    setSelectedRange(null)
     setJudgeControlsOpen(false)
-    setModelAssignments(defaultModelAssignments)
+    setUserSide('advocate')
   }
 
   useEffect(() => {
@@ -129,36 +255,35 @@ function App() {
       return
     }
 
-    let cancelled = false
-    let timeoutId: number | undefined
-
-    const playTurn = (index: number) => {
-      if (cancelled) {
-        return
-      }
-
-      setActiveIndex(index)
-
-      if (index >= turns.length - 1) {
-        return
-      }
-
-      timeoutId = window.setTimeout(() => {
-        playTurn(index + 1)
-      }, turns[index].delayMs)
-    }
-
-    timeoutId = window.setTimeout(() => {
-      playTurn(0)
+    const timeoutId = window.setTimeout(() => {
+      setActiveIndex(0)
     }, 700)
 
     return () => {
-      cancelled = true
-      if (timeoutId !== undefined) {
-        window.clearTimeout(timeoutId)
-      }
+      window.clearTimeout(timeoutId)
     }
   }, [courtOpen, turns])
+
+  useEffect(() => {
+    if (!courtOpen || activeIndex < 0) {
+      return
+    }
+
+    const activeTurnForTimer = turns[activeIndex]
+    const isUserTurnForTimer = activeTurnForTimer.agentId === userSide
+
+    if (isUserTurnForTimer || activeIndex >= turns.length - 1) {
+      return
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setActiveIndex((currentIndex) => Math.min(currentIndex + 1, turns.length - 1))
+    }, activeTurnForTimer.delayMs)
+
+    return () => {
+      window.clearTimeout(timeoutId)
+    }
+  }, [activeIndex, courtOpen, turns, userSide])
 
   useEffect(() => {
     if (!judgeControlsOpen) {
@@ -185,10 +310,15 @@ function App() {
       return []
     }
 
-    return turns.slice(0, activeIndex + 1)
-  }, [activeIndex, turns])
+    return turns.slice(0, activeIndex + 1).map((turn) => ({
+      ...turn,
+      text: userTurnResponses[turn.id] ?? turn.text,
+    }))
+  }, [activeIndex, turns, userTurnResponses])
 
   const activeTurn = activeIndex >= 0 ? turns[activeIndex] : null
+  const activeTurnText = activeTurn ? userTurnResponses[activeTurn.id] ?? activeTurn.text : ''
+  const isUserTurn = activeTurn?.agentId === userSide
   return (
     <div className="relative min-h-screen overflow-hidden">
       <img
@@ -229,6 +359,8 @@ function App() {
                   onClick={() => {
                     setJudgeControlsOpen(false)
                     setActiveIndex(-1)
+                    setUserTurnInput('')
+                    setUserTurnResponses({})
                     setCourtOpen(false)
                     window.setTimeout(() => setCourtOpen(true), 30)
                   }}
@@ -257,19 +389,51 @@ function App() {
               title={roleMap[activeTurn.agentId].title}
               imageSrc={roleMap[activeTurn.agentId].imageSrc}
               side={roleMap[activeTurn.agentId].side}
-              text={activeTurn.text}
+              text={activeTurnText}
               accentClass={roleMap[activeTurn.agentId].accentClass}
-            />
-          ) : !courtOpen ? (
-            <CharacterSetup
-              characters={setupCharacters}
-              modelAssignments={modelAssignments}
-              modelOptions={modelOptions}
-              onModelChange={(characterId, model) => {
-                setModelAssignments((currentAssignments) => ({
-                  ...currentAssignments,
-                  [characterId]: model,
+              isUserTurn={isUserTurn}
+              userInput={userTurnInput}
+              onUserInputChange={setUserTurnInput}
+              onUserSubmit={() => {
+                const response = userTurnInput.trim()
+
+                if (!response) {
+                  return
+                }
+
+                setUserTurnResponses((responses) => ({
+                  ...responses,
+                  [activeTurn.id]: response,
                 }))
+                setUserTurnInput('')
+                setActiveIndex((currentIndex) => Math.min(currentIndex + 1, turns.length - 1))
+              }}
+            />
+          ) : !courtOpen && selectedLevel ? (
+            <div className="relative w-full">
+              {selectedRange ? (
+                <div className="absolute left-0 top-4 z-20 rounded-md border border-stone-700 bg-stone-950/95 px-4 py-3 shadow-[0_18px_42px_rgba(0,0,0,0.32)]">
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-stone-500">
+                    Selected case
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-stone-100">
+                    {selectedLevel.title} · {selectedRange.difficulty}
+                  </p>
+                </div>
+              ) : null}
+              <CharacterSetup
+                characters={setupCharacters}
+                userSide={userSide}
+                onUserSideChange={setUserSide}
+              />
+            </div>
+          ) : !courtOpen ? (
+            <LandingPage
+              levels={caseLevels}
+              onPlay={(level, range) => {
+                setSelectedLevel(level)
+                setSelectedRange(range)
+                setCasePrompt(range.template)
               }}
             />
           ) : null}
@@ -333,12 +497,15 @@ function App() {
             </details>
           </div>
         </div>
-      ) : (
+      ) : selectedLevel ? (
         <div className="fixed inset-x-0 bottom-6 z-20 flex justify-center px-4">
           <form
             className="w-full max-w-3xl animate-verdict-float-in rounded-lg border border-stone-700 bg-stone-950/98 p-2 shadow-[0_18px_54px_rgba(0,0,0,0.48)]"
             onSubmit={(event) => {
               event.preventDefault()
+              setActiveIndex(-1)
+              setUserTurnInput('')
+              setUserTurnResponses({})
               setCourtOpen(false)
               window.setTimeout(() => setCourtOpen(true), 30)
             }}
@@ -363,7 +530,7 @@ function App() {
             </div>
           </form>
         </div>
-      )}
+      ) : null}
     </div>
   )
 }
