@@ -8,7 +8,7 @@ import {
   lawyerSystemPrompt,
 } from '../../src/lib/agents/prompts.js'
 import { getActorVoice, getCourtActorConfig } from '../llm/config.js'
-import { callAgentOnce } from '../llm/client.js'
+import { callAgentOnce, getOpenAIClient, streamAgentTurn } from '../llm/client.js'
 import { streamRealtimeTurn } from '../llm/realtime.js'
 import { recordFinalVerdict, recordJudgeRuling, submitAgentTurn } from '../../src/lib/session/index.js'
 import { sessionStore } from '../session/store.js'
@@ -140,27 +140,42 @@ router.post('/', async (req: Request, res: Response) => {
     return
   }
 
+  const config = getCourtActorConfig(session.caseFile.level, 'judge')
   const systemPrompt = judgeSystemPrompt('verdict')
   const userMessage = buildFinalVerdictUserMessage(session)
-  const voice = getActorVoice(session.caseFile.level, 'judge')
   let fullContent = ''
 
   try {
-    for await (const chunk of streamRealtimeTurn(systemPrompt, userMessage, voice)) {
-      if (chunk.type === 'text') {
-        fullContent += chunk.delta
-        res.write(`data: ${JSON.stringify({ token: chunk.delta, done: false })}\n\n`)
-      } else {
-        res.write(`data: ${JSON.stringify({ audio: chunk.chunk, done: false })}\n\n`)
-      }
+    // Stream text via standard LLM
+    for await (const token of streamAgentTurn(systemPrompt, userMessage, { ...config, streaming: true })) {
+      fullContent += token
+      res.write(`data: ${JSON.stringify({ token, done: false })}\n\n`)
     }
 
+    // Save verdict before streaming audio
     const result = recordFinalVerdict(session, fullContent)
     sessionStore.set(result.session)
+
+    // Generate TTS audio — onyx is a deep authoritative male voice
+    const openai = getOpenAIClient()
+    const ttsResponse = await openai.audio.speech.create({
+      model: 'tts-1',
+      voice: 'onyx',
+      input: fullContent,
+      response_format: 'pcm',
+    })
+
+    const audioBuffer = Buffer.from(await ttsResponse.arrayBuffer())
+    const CHUNK_SIZE = 8192
+    for (let offset = 0; offset < audioBuffer.length; offset += CHUNK_SIZE) {
+      const slice = audioBuffer.subarray(offset, offset + CHUNK_SIZE)
+      res.write(`data: ${JSON.stringify({ audio: slice.toString('base64'), done: false })}\n\n`)
+    }
+
     res.write(`data: ${JSON.stringify({ token: '', done: true, content: fullContent, session: result.session })}\n\n`)
   } catch (error) {
-    console.error('[JUDGE] verdict realtime failed:', error)
-    res.write(`data: ${JSON.stringify({ token: '', done: true, error: 'Verdict stream failed', fullContent })}\n\n`)
+    console.error('[JUDGE] verdict failed:', error)
+    res.write(`data: ${JSON.stringify({ token: '', done: true, error: 'Verdict failed', fullContent })}\n\n`)
   } finally {
     res.end()
   }
