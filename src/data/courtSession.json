@@ -1,0 +1,48 @@
+{
+  "caseTitle": "People v. Project Atlas",
+  "caseQuestion": "Was the launch justified despite known public-risk concerns?",
+  "turns": [
+    {
+      "id": "turn-1",
+      "agentId": "accuse",
+      "phase": "opening",
+      "text": "The prosecution submits that the launch proceeded with clear notice of avoidable risk. The decision was not forced; it was chosen.",
+      "delayMs": 1400
+    },
+    {
+      "id": "turn-2",
+      "agentId": "advocate",
+      "phase": "opening",
+      "text": "The defense will show that the team acted under severe time pressure, incomplete data, and a reasonable belief that the safeguards were sufficient.",
+      "delayMs": 1400
+    },
+    {
+      "id": "turn-3",
+      "agentId": "chronicle",
+      "phase": "examination",
+      "text": "The project log records three escalation notes in the week before launch, including one warning that the failure mode had not been fully reproduced.",
+      "delayMs": 1500
+    },
+    {
+      "id": "turn-4",
+      "agentId": "ethos",
+      "phase": "examination",
+      "text": "Ethically, the core issue is foreseeability. Once harm becomes plausible and preventable, responsibility attaches to the people who still choose to proceed.",
+      "delayMs": 1500
+    },
+    {
+      "id": "turn-5",
+      "agentId": "advocate",
+      "phase": "cross",
+      "text": "A plausible risk is not the same as a probable outcome. Decision-makers are allowed to rely on expert mitigation when the record is still unsettled.",
+      "delayMs": 1400
+    },
+    {
+      "id": "turn-6",
+      "agentId": "accuse",
+      "phase": "closing",
+      "text": "The record is simple: warning, delay option, conscious override. That is enough for this court to find the judgment reckless.",
+      "delayMs": 1600
+    }
+  ]
+}

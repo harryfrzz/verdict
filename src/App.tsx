@@ -1,163 +1,207 @@
-import heroImg from './assets/hero.png'
-const preloadedCases = [
-  {
-    title: 'Oppenheimer',
-    category: 'Ethics · History',
-    question: 'Was Oppenheimer morally responsible for Hiroshima?',
-  },
-  {
-    title: 'Algorithmic Justice',
-    category: 'Technology · Policy',
-    question: 'Should governments ban predictive policing systems?',
-  },
-  {
-    title: 'Civil Resistance',
-    category: 'Law · Ethics',
-    question: 'Is it ever justified to break the law to prevent a greater harm?',
-  },
-]
+import { useEffect, useMemo, useState } from 'react'
+import CourtTurn from './components/roleplay/CourtTurn'
+import sessionData from './data/courtSession.json'
 
-const flow = [
-  'Docket intake',
-  'Plea selection',
-  'Openings and witness examination',
-  'Arbiter deliberation',
-  'Shareable verdict',
-]
+type AgentId = 'accuse' | 'advocate' | 'chronicle' | 'ethos'
+
+interface RoleConfig {
+  name: string
+  title: string
+  imageSrc: string
+  side: 'left' | 'right'
+  accentClass: string
+}
+
+interface SessionTurn {
+  id: string
+  agentId: AgentId
+  phase: string
+  text: string
+  delayMs: number
+}
+
+const roleMap: Record<AgentId, RoleConfig> = {
+  accuse: {
+    name: 'ACCUSE',
+    title: 'Prosecution',
+    imageSrc: '/lawyer_1.png',
+    side: 'right',
+    accentClass: 'bg-red-400',
+  },
+  advocate: {
+    name: 'ADVOCATE',
+    title: 'Defense',
+    imageSrc: '/lawyer_2.png',
+    side: 'left',
+    accentClass: 'bg-violet-400',
+  },
+  chronicle: {
+    name: 'CHRONICLE',
+    title: 'Witness I',
+    imageSrc: '/witness_1_chronicle.png',
+    side: 'right',
+    accentClass: 'bg-sky-400',
+  },
+  ethos: {
+    name: 'ETHOS',
+    title: 'Witness II',
+    imageSrc: '/witness_2_ethos.png',
+    side: 'left',
+    accentClass: 'bg-emerald-400',
+  },
+}
 
 function App() {
+  const turns = sessionData.turns as SessionTurn[]
+  const [courtOpen, setCourtOpen] = useState(false)
+  const [activeIndex, setActiveIndex] = useState<number>(-1)
+
+  useEffect(() => {
+    if (!courtOpen) {
+      setActiveIndex(-1)
+      return
+    }
+
+    let cancelled = false
+    let timeoutId: number | undefined
+
+    const playTurn = (index: number) => {
+      if (cancelled) {
+        return
+      }
+
+      setActiveIndex(index)
+
+      if (index >= turns.length - 1) {
+        return
+      }
+
+      timeoutId = window.setTimeout(() => {
+        playTurn(index + 1)
+      }, turns[index].delayMs)
+    }
+
+    timeoutId = window.setTimeout(() => {
+      playTurn(0)
+    }, 700)
+
+    return () => {
+      cancelled = true
+      if (timeoutId !== undefined) {
+        window.clearTimeout(timeoutId)
+      }
+    }
+  }, [courtOpen, turns])
+
+  const visibleTurns = useMemo(() => {
+    if (activeIndex < 0) {
+      return []
+    }
+
+    return turns.slice(0, activeIndex + 1)
+  }, [activeIndex, turns])
+
+  const activeTurn = activeIndex >= 0 ? turns[activeIndex] : null
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(201,169,110,0.16),_transparent_34%),linear-gradient(180deg,_#151217_0%,_#0b0b0d_48%,_#070709_100%)] text-stone-100">
-      <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col px-6 py-8 sm:px-10 lg:px-12">
-        <header className="mb-10 flex items-center justify-between border-b border-white/10 pb-5">
-          <div>
-            <p className="font-mono text-xs uppercase tracking-[0.35em] text-amber-200/70">
-              Verdict
-            </p>
-            <p className="mt-2 max-w-md text-sm text-stone-400">
-              An adversarial AI courtroom for moral dilemmas, policy disputes, and
-              contested historical judgments.
-            </p>
-          </div>
-          <div className="hidden rounded-full border border-amber-200/20 bg-amber-200/10 px-4 py-2 font-mono text-xs uppercase tracking-[0.25em] text-amber-100 md:block">
-            Vite + React + Tailwind
-          </div>
-        </header>
+    <div className="relative min-h-screen overflow-hidden">
+      <img
+        className="absolute inset-0 z-0 h-full w-full object-cover"
+        src="/bg_courtroom.png"
+        alt=""
+      />
+      <div className="absolute inset-0 z-[1] bg-[linear-gradient(180deg,rgba(4,4,8,0.16)_0%,rgba(4,4,8,0.34)_52%,rgba(4,4,8,0.72)_100%)]" />
+      <div className="group absolute left-[50.1%] top-[44.5%] z-[2] -translate-x-1/2 -translate-y-1/2">
+        <div className="pointer-events-none absolute -inset-2 rounded-md border border-amber-200/0 bg-amber-200/0 transition duration-300 group-hover:animate-pulse group-hover:border-amber-200/80 group-hover:bg-amber-200/10 group-hover:shadow-[0_0_28px_rgba(253,230,138,0.42)]" />
+        <img
+          className="relative h-[min(9vh,28rem)] w-auto object-contain drop-shadow-[0_22px_28px_rgba(0,0,0,0.46)]"
+          src="/judge.png"
+          alt="Judge"
+        />
+      </div>
+      <div className="group absolute left-1/2 top-[65%] z-[3] -translate-x-1/2 -translate-y-1/2">
+        <div className="pointer-events-none absolute -inset-3 rounded-md border border-sky-200/0 bg-sky-200/0 transition duration-300 group-hover:animate-pulse group-hover:border-sky-200/80 group-hover:bg-sky-200/10 group-hover:shadow-[0_0_32px_rgba(186,230,253,0.44)]" />
+        <img
+          className="relative h-[min(20vh,26rem)] w-auto object-contain drop-shadow-[0_24px_30px_rgba(0,0,0,0.48)]"
+          src="/accused_person.png"
+          alt="Accused person"
+        />
+      </div>
+      <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-[1440px] flex-col px-4 pb-24 pt-2 sm:px-6">
+        <div className="absolute right-4 top-4 z-30 sm:right-6">
+          <button
+            type="button"
+            onClick={() => {
+              setCourtOpen(false)
+              window.setTimeout(() => setCourtOpen(true), 30)
+            }}
+            className="rounded-md border border-amber-200/28 bg-black/64 px-4 py-2 text-sm font-medium text-amber-50 backdrop-blur-sm transition hover:bg-black/76"
+          >
+            {courtOpen ? 'Replay Court' : 'Open Court'}
+          </button>
+        </div>
 
-        <section className="grid flex-1 items-center gap-10 lg:grid-cols-[1.1fr_0.9fr]">
-          <div className="space-y-8">
-            <div className="space-y-5">
-              <p className="font-mono text-sm uppercase tracking-[0.35em] text-stone-500">
-                Courtroom Simulation
-              </p>
-              <h1 className="max-w-3xl text-5xl font-semibold leading-none tracking-[-0.04em] text-stone-50 sm:text-6xl">
-                Put any hard question on trial.
-              </h1>
-              <p className="max-w-2xl text-lg leading-8 text-stone-300">
-                Verdict stages prosecution, defense, witnesses, and judicial
-                deliberation in a single cinematic flow. Users enter the case,
-                choose the plea, and watch both sides fight toward a final ruling.
-              </p>
-            </div>
+        <main className="flex flex-1 items-center">
+          {activeTurn ? (
+            <CourtTurn
+              name={roleMap[activeTurn.agentId].name}
+              title={roleMap[activeTurn.agentId].title}
+              imageSrc={roleMap[activeTurn.agentId].imageSrc}
+              side={roleMap[activeTurn.agentId].side}
+              text={activeTurn.text}
+              accentClass={roleMap[activeTurn.agentId].accentClass}
+            />
+          ) : null}
+        </main>
+      </div>
 
-            <div className="flex flex-wrap gap-4">
-              <button
-                type="button"
-                className="inline-flex items-center justify-center border border-amber-300/40 bg-amber-200 px-6 py-3 font-mono text-sm uppercase tracking-[0.2em] text-stone-950 transition hover:bg-amber-100"
-              >
-                Open the Court
-              </button>
-              <button
-                type="button"
-                className="inline-flex items-center justify-center border border-white/15 bg-white/5 px-6 py-3 font-mono text-sm uppercase tracking-[0.2em] text-stone-100 transition hover:border-white/30 hover:bg-white/10"
-              >
-                Review Cases
-              </button>
-            </div>
-
-            <dl className="grid gap-4 sm:grid-cols-3">
-              <div className="border border-white/10 bg-white/5 p-4">
-                <dt className="font-mono text-xs uppercase tracking-[0.25em] text-stone-500">
-                  Agents
-                </dt>
-                <dd className="mt-3 text-3xl font-semibold text-stone-50">5</dd>
+      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-stone-700 bg-stone-950">
+        <div className="mx-auto w-full max-w-[1440px] px-4 py-3 sm:px-6">
+          <details className="group">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-4 rounded-md border border-stone-700 bg-stone-900 px-4 py-3">
+              <div className="min-w-0">
+                <p className="text-[11px] uppercase tracking-[0.18em] text-stone-400">
+                  Transcript
+                </p>
+                <p className="truncate text-sm font-semibold text-stone-100">
+                  Simulated Conversation
+                </p>
               </div>
-              <div className="border border-white/10 bg-white/5 p-4">
-                <dt className="font-mono text-xs uppercase tracking-[0.25em] text-stone-500">
-                  Witness Rounds
-                </dt>
-                <dd className="mt-3 text-3xl font-semibold text-stone-50">2x2</dd>
-              </div>
-              <div className="border border-white/10 bg-white/5 p-4">
-                <dt className="font-mono text-xs uppercase tracking-[0.25em] text-stone-500">
-                  Verdict Target
-                </dt>
-                <dd className="mt-3 text-3xl font-semibold text-stone-50">&lt; 4m</dd>
-              </div>
-            </dl>
-          </div>
+              <span className="rounded-full border border-stone-700 bg-stone-950 px-3 py-1 text-[11px] uppercase tracking-[0.16em] text-stone-300">
+                {visibleTurns.length}/{turns.length}
+              </span>
+            </summary>
 
-          <div className="relative overflow-hidden border border-white/10 bg-black/20 p-6 shadow-2xl shadow-black/40 backdrop-blur-sm">
-            <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,_rgba(139,26,47,0.18),_transparent_35%,_transparent_65%,_rgba(26,58,92,0.22))]" />
-            <div className="relative">
-              <div className="mb-6 flex items-center justify-between">
-                <div>
-                  <p className="font-mono text-xs uppercase tracking-[0.3em] text-amber-200/70">
-                    Live Flow
-                  </p>
-                  <h2 className="mt-2 text-2xl font-semibold text-stone-50">
-                    The court opens in ten beats
-                  </h2>
-                </div>
-                <img
-                  src={heroImg}
-                  alt="Verdict courtroom concept art"
-                  className="h-24 w-24 border border-white/10 object-cover shadow-lg shadow-black/30"
-                />
-              </div>
+            <div className="mt-3 max-h-[42vh] space-y-3 overflow-y-auto pb-2">
+              {visibleTurns.length > 0 ? (
+                visibleTurns.map((turn) => {
+                  const role = roleMap[turn.agentId]
 
-              <ol className="space-y-3 border-l border-white/10 pl-4">
-                {flow.map((step, index) => (
-                  <li key={step} className="relative pl-4">
-                    <span className="absolute -left-[1.35rem] top-1.5 h-3 w-3 border border-amber-200/50 bg-stone-950" />
-                    <span className="font-mono text-xs uppercase tracking-[0.25em] text-stone-500">
-                      {String(index + 1).padStart(2, '0')}
-                    </span>
-                    <p className="mt-1 text-base text-stone-200">{step}</p>
-                  </li>
-                ))}
-              </ol>
-
-              <div className="mt-8 grid gap-3">
-                {preloadedCases.map((item) => (
-                  <article
-                    key={item.title}
-                    className="border border-white/10 bg-white/[0.03] p-4 transition hover:border-white/20 hover:bg-white/[0.05]"
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <p className="font-mono text-[11px] uppercase tracking-[0.28em] text-stone-500">
-                          {item.category}
-                        </p>
-                        <h3 className="mt-2 text-lg font-medium text-stone-50">
-                          {item.title}
-                        </h3>
-                        <p className="mt-2 text-sm leading-6 text-stone-300">
-                          {item.question}
+                  return (
+                    <article
+                      key={turn.id}
+                      className="rounded-md border border-stone-700 bg-stone-900 px-4 py-3"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className={`h-2.5 w-2.5 rounded-full ${role.accentClass}`} />
+                        <p className="text-sm font-semibold text-stone-100">{role.name}</p>
+                        <p className="text-[11px] uppercase tracking-[0.16em] text-stone-400">
+                          {turn.phase}
                         </p>
                       </div>
-                      <span className="mt-1 border border-amber-200/20 bg-amber-200/10 px-2 py-1 font-mono text-[10px] uppercase tracking-[0.2em] text-amber-100">
-                        Ready
-                      </span>
-                    </div>
-                  </article>
-                ))}
-              </div>
+                      <p className="mt-2 text-sm leading-6 text-stone-300">{turn.text}</p>
+                    </article>
+                  )
+                })
+              ) : (
+                <div className="rounded-md border border-dashed border-stone-700 bg-stone-900 px-4 py-6 text-sm leading-6 text-stone-400">
+                  The transcript will populate after the court opens.
+                </div>
+              )}
             </div>
-          </div>
-        </section>
+          </details>
+        </div>
       </div>
-    </main>
+    </div>
   )
 }
 
