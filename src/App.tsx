@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { Home } from 'lucide-react'
 import CharacterSetup, { type SetupCharacter } from './components/roleplay/CharacterSetup'
 import CourtTurn from './components/roleplay/CourtTurn'
 import LandingPage, { type CaseDifficultyRange, type CaseLevel } from './components/roleplay/LandingPage'
@@ -90,7 +91,7 @@ const caseLevels: CaseLevel[] = [
     level: 1,
     title: 'The Missing Ledger',
     category: 'Theft',
-    thumbnailSrc: '/witness_1_chronicle.png',
+    thumbnailSrc: '/missing_ledger.png',
     summary:
       'A clerk is accused of stealing courthouse funds after a ledger page disappears before audit.',
     charge: 'A courthouse clerk is accused of stealing funds from an internal ledger.',
@@ -124,7 +125,7 @@ const caseLevels: CaseLevel[] = [
     level: 2,
     title: 'The Warehouse Fire',
     category: 'Arson',
-    thumbnailSrc: '/lawyer_1.png',
+    thumbnailSrc: '/warehouse_fire.png',
     summary:
       'A business owner is charged after a failing warehouse burns down days before an insurance deadline.',
     charge: 'A business owner is accused of orchestrating a warehouse fire for financial gain.',
@@ -158,7 +159,7 @@ const caseLevels: CaseLevel[] = [
     level: 3,
     title: 'The Algorithmic Crash',
     category: 'Corporate negligence',
-    thumbnailSrc: '/bg_courtroom.png',
+    thumbnailSrc: '/algorithmic_crash.png',
     summary:
       'A transport AI caused a fatal crash after executives allegedly ignored safety warnings.',
     charge: 'Executives are accused of criminal negligence after deploying unsafe transport AI.',
@@ -192,7 +193,7 @@ const caseLevels: CaseLevel[] = [
     level: 4,
     title: 'The State Secret',
     category: 'Espionage',
-    thumbnailSrc: '/judge.png',
+    thumbnailSrc: '/state_secret.png',
     summary:
       'A scientist leaked classified research, claiming the public had a right to know about hidden risks.',
     charge: 'A scientist is accused of illegal disclosure of classified national-security research.',
@@ -232,9 +233,16 @@ function App() {
   const [userTurnResponses, setUserTurnResponses] = useState<Record<string, string>>({})
   const [selectedLevel, setSelectedLevel] = useState<CaseLevel | null>(null)
   const [selectedRange, setSelectedRange] = useState<CaseDifficultyRange | null>(null)
-  const [judgeControlsOpen, setJudgeControlsOpen] = useState(false)
+  const [caseDetailsOpen, setCaseDetailsOpen] = useState(false)
   const [userSide, setUserSide] = useState<'accuse' | 'advocate'>('advocate')
-  const judgeControlsRef = useRef<HTMLDivElement | null>(null)
+
+  const replayLevel = () => {
+    setActiveIndex(-1)
+    setUserTurnInput('')
+    setUserTurnResponses({})
+    setCourtOpen(false)
+    window.setTimeout(() => setCourtOpen(true), 30)
+  }
 
   const resetCourt = () => {
     setCourtOpen(false)
@@ -244,14 +252,13 @@ function App() {
     setUserTurnResponses({})
     setSelectedLevel(null)
     setSelectedRange(null)
-    setJudgeControlsOpen(false)
+    setCaseDetailsOpen(false)
     setUserSide('advocate')
   }
 
   useEffect(() => {
     if (!courtOpen) {
       setActiveIndex(-1)
-      setJudgeControlsOpen(false)
       return
     }
 
@@ -285,26 +292,6 @@ function App() {
     }
   }, [activeIndex, courtOpen, turns, userSide])
 
-  useEffect(() => {
-    if (!judgeControlsOpen) {
-      return
-    }
-
-    const handlePointerDown = (event: PointerEvent) => {
-      if (judgeControlsRef.current?.contains(event.target as Node)) {
-        return
-      }
-
-      setJudgeControlsOpen(false)
-    }
-
-    window.addEventListener('pointerdown', handlePointerDown)
-
-    return () => {
-      window.removeEventListener('pointerdown', handlePointerDown)
-    }
-  }, [judgeControlsOpen])
-
   const visibleTurns = useMemo(() => {
     if (activeIndex < 0) {
       return []
@@ -329,47 +316,12 @@ function App() {
       <div className="absolute inset-0 z-[1] bg-[linear-gradient(180deg,rgba(4,4,8,0.16)_0%,rgba(4,4,8,0.34)_52%,rgba(4,4,8,0.72)_100%)]" />
       {courtOpen ? (
         <>
-          <div
-            ref={judgeControlsRef}
-            className="group absolute left-[50.1%] top-[44.5%] z-30 -translate-x-1/2 -translate-y-1/2 p-4"
-          >
-            <button
-              type="button"
-              aria-label="Toggle court controls"
-              onClick={() => setJudgeControlsOpen((isOpen) => !isOpen)}
-              className="block"
-            >
-              <img
-                className="relative h-[min(9vh,28rem)] w-auto object-contain drop-shadow-[0_22px_28px_rgba(0,0,0,0.46)] transition duration-300 group-hover:scale-105"
-                src="/judge.png"
-                alt="Judge"
-              />
-            </button>
-            {judgeControlsOpen ? (
-              <div className="absolute left-1/2 top-full mt-2 flex w-max -translate-x-1/2 animate-verdict-float-in items-center gap-3 rounded-md border border-stone-700 bg-stone-950/96 px-3 py-2 shadow-[0_18px_42px_rgba(0,0,0,0.36)]">
-                <button
-                  type="button"
-                  onClick={resetCourt}
-                  className="rounded-md border border-stone-700 bg-stone-900 px-3 py-2 text-sm font-medium text-stone-100 transition hover:border-stone-500 hover:bg-stone-800 active:scale-[0.98]"
-                >
-                  Court adjourned
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setJudgeControlsOpen(false)
-                    setActiveIndex(-1)
-                    setUserTurnInput('')
-                    setUserTurnResponses({})
-                    setCourtOpen(false)
-                    window.setTimeout(() => setCourtOpen(true), 30)
-                  }}
-                  className="rounded-md bg-amber-200 px-3 py-2 text-sm font-semibold text-stone-950 transition hover:bg-amber-100 active:scale-[0.98]"
-                >
-                  Replay Court
-                </button>
-              </div>
-            ) : null}
+          <div className="group absolute left-[50.1%] top-[44.5%] z-[2] -translate-x-1/2 -translate-y-1/2">
+            <img
+              className="relative h-[min(9vh,28rem)] w-auto object-contain drop-shadow-[0_22px_28px_rgba(0,0,0,0.46)] transition duration-300 group-hover:scale-105"
+              src="/judge.png"
+              alt="Judge"
+            />
           </div>
           <div className="group absolute left-1/2 top-[65%] z-[3] -translate-x-1/2 -translate-y-1/2">
             <img
@@ -411,16 +363,59 @@ function App() {
             />
           ) : !courtOpen && selectedLevel ? (
             <div className="relative w-full">
-              {selectedRange ? (
-                <div className="absolute left-0 top-4 z-20 rounded-md border border-stone-700 bg-stone-950/95 px-4 py-3 shadow-[0_18px_42px_rgba(0,0,0,0.32)]">
-                  <p className="text-[11px] uppercase tracking-[0.18em] text-stone-500">
-                    Selected case
-                  </p>
-                  <p className="mt-1 text-sm font-semibold text-stone-100">
-                    {selectedLevel.title} · {selectedRange.difficulty}
-                  </p>
+              <div className="absolute left-0 top-4 z-30 flex max-w-2xl items-stretch gap-3">
+                <button
+                  type="button"
+                  aria-label="Go home"
+                  onClick={resetCourt}
+                  className="flex h-16 w-14 shrink-0 items-center justify-center rounded-2xl border border-amber-100/20 bg-stone-950/82 text-stone-100 shadow-[0_18px_48px_rgba(0,0,0,0.42)] backdrop-blur-sm transition hover:-translate-y-0.5 hover:border-amber-100/45 hover:bg-stone-900/90 hover:text-amber-100"
+                >
+                  <Home className="h-6 w-6" aria-hidden="true" />
+                </button>
+                {selectedRange ? (
+                  <div className="flex h-16 min-w-0 items-center rounded-2xl border border-amber-100/15 bg-[linear-gradient(145deg,rgba(28,25,23,0.88),rgba(12,10,9,0.86))] px-4 shadow-[0_18px_48px_rgba(0,0,0,0.42)] backdrop-blur-sm">
+                    <div className="min-w-0">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-100/75">
+                      {selectedRange.difficulty} Mission
+                    </p>
+                    <p className="mt-1 truncate text-sm font-semibold text-stone-50">
+                      {selectedLevel.title}
+                    </p>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+              <form
+                className="absolute right-0 top-4 z-30 flex h-16 w-full max-w-2xl animate-verdict-float-in items-stretch gap-3"
+                onSubmit={(event) => {
+                  event.preventDefault()
+                  setActiveIndex(-1)
+                  setUserTurnInput('')
+                  setUserTurnResponses({})
+                  setCourtOpen(false)
+                  window.setTimeout(() => setCourtOpen(true), 30)
+                }}
+              >
+                <div className="flex min-w-0 flex-1 items-center rounded-2xl border border-amber-100/15 bg-[linear-gradient(145deg,rgba(28,25,23,0.96),rgba(12,10,9,0.96)_58%,rgba(41,18,18,0.9))] px-4 py-2 shadow-[0_24px_74px_rgba(0,0,0,0.58)] ring-1 ring-white/[0.04] backdrop-blur-sm">
+                  <label className="min-w-0 flex-1">
+                    <span className="mb-0.5 block text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-100/70">
+                      Mission Description
+                    </span>
+                    <input
+                      type="text"
+                      readOnly
+                      value={casePrompt}
+                      className="block h-8 w-full whitespace-nowrap rounded-xl border-transparent bg-stone-900/70 px-3 text-sm text-stone-100 outline-none transition focus:ring-amber-100/35"
+                    />
+                  </label>
                 </div>
-              ) : null}
+                <button
+                  type="submit"
+                  className="h-16 shrink-0 rounded-2xl border border-amber-50/45 bg-gradient-to-r from-amber-100 to-orange-200 px-6 text-sm font-bold text-stone-950 shadow-[0_18px_48px_rgba(251,191,36,0.24)] transition hover:-translate-y-0.5 hover:from-amber-50 hover:to-orange-100 active:scale-[0.98]"
+                >
+                  Begin Mission
+                </button>
+              </form>
               <CharacterSetup
                 characters={setupCharacters}
                 userSide={userSide}
@@ -447,13 +442,45 @@ function App() {
               <summary className="flex cursor-pointer list-none items-center justify-between gap-4 rounded-md border border-stone-700 bg-stone-900 px-4 py-3 transition hover:border-stone-500">
                 <div className="min-w-0">
                   <p className="text-[11px] uppercase tracking-[0.18em] text-stone-400">
-                    Transcript
+                    {selectedRange?.difficulty ?? 'Case'} Mission
                   </p>
                   <p className="truncate text-sm font-semibold text-stone-100">
-                    Simulated Conversation
+                    {selectedLevel?.title ?? 'Simulated Conversation'}
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.preventDefault()
+                      resetCourt()
+                    }}
+                    className="rounded-md border border-red-400/50 bg-red-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:border-red-300 hover:bg-red-500"
+                  >
+                    Court adjourned
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.preventDefault()
+                      replayLevel()
+                    }}
+                    className="rounded-md bg-amber-200 px-3 py-1.5 text-xs font-semibold text-stone-950 transition hover:bg-amber-100 active:scale-[0.98]"
+                  >
+                    Replay level
+                  </button>
+                  {selectedLevel && selectedRange ? (
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.preventDefault()
+                        setCaseDetailsOpen(true)
+                      }}
+                      className="rounded-md border border-stone-700 bg-stone-950 px-3 py-1.5 text-xs font-medium text-stone-200 transition hover:border-stone-500 hover:bg-stone-800"
+                    >
+                      Case details
+                    </button>
+                  ) : null}
                   <span className="hidden h-1.5 w-24 overflow-hidden rounded-full bg-stone-800 sm:block">
                     <span
                       className="block h-full rounded-full bg-amber-200 transition-all duration-300"
@@ -463,6 +490,18 @@ function App() {
                   <span className="rounded-full border border-stone-700 bg-stone-950 px-3 py-1 text-[11px] uppercase tracking-[0.16em] text-stone-300">
                     {visibleTurns.length}/{turns.length}
                   </span>
+                  <svg
+                    className="h-4 w-4 shrink-0 text-stone-300 transition-transform duration-200 group-open:rotate-180"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                    aria-hidden="true"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.17l3.71-3.94a.75.75 0 1 1 1.08 1.04l-4.25 4.5a.75.75 0 0 1-1.08 0l-4.25-4.5a.75.75 0 0 1 .02-1.06Z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
                 </div>
               </summary>
 
@@ -497,38 +536,54 @@ function App() {
             </details>
           </div>
         </div>
-      ) : selectedLevel ? (
-        <div className="fixed inset-x-0 bottom-6 z-20 flex justify-center px-4">
-          <form
-            className="w-full max-w-3xl animate-verdict-float-in rounded-lg border border-stone-700 bg-stone-950/98 p-2 shadow-[0_18px_54px_rgba(0,0,0,0.48)]"
-            onSubmit={(event) => {
-              event.preventDefault()
-              setActiveIndex(-1)
-              setUserTurnInput('')
-              setUserTurnResponses({})
-              setCourtOpen(false)
-              window.setTimeout(() => setCourtOpen(true), 30)
-            }}
-          >
-            <div className="flex items-center gap-2 rounded-md bg-stone-900 p-1.5">
-              <label className="min-w-0 flex-1">
-                <span className="sr-only">Crime case</span>
-                <input
-                  value={casePrompt}
-                  onChange={(event) => setCasePrompt(event.target.value)}
-                  required
-                  placeholder="Type the crime case to be tried..."
-                  className="block w-full rounded-md border border-transparent bg-transparent px-3 py-2.5 text-sm text-stone-100 outline-none transition placeholder:text-stone-500 focus:border-stone-600"
-                />
-              </label>
+      ) : null}
+
+      {caseDetailsOpen && selectedLevel && selectedRange ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
+          <div className="w-full max-w-2xl animate-verdict-float-in rounded-2xl border border-stone-700 bg-stone-950 p-5 shadow-[0_32px_90px_rgba(0,0,0,0.62)]">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.18em] text-stone-500">
+                  {selectedRange.difficulty} Mission
+                </p>
+                <h2 className="mt-2 text-2xl font-semibold text-stone-100">
+                  {selectedLevel.title}
+                </h2>
+              </div>
               <button
-                type="submit"
-                className="shrink-0 rounded-md bg-amber-200 px-4 py-2.5 text-sm font-semibold text-stone-950 transition hover:bg-amber-100 active:scale-[0.98]"
+                type="button"
+                onClick={() => setCaseDetailsOpen(false)}
+                className="rounded-lg border border-stone-700 bg-stone-900 px-3 py-2 text-sm text-stone-300 transition hover:border-stone-500 hover:text-stone-100"
               >
-                Open Court
+                Close
               </button>
             </div>
-          </form>
+
+            <div className="mt-5 grid gap-3 rounded-xl border border-stone-800 bg-stone-900 p-4">
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.16em] text-stone-500">Charge</p>
+                <p className="mt-1 text-sm leading-6 text-stone-200">{selectedLevel.charge}</p>
+              </div>
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.16em] text-stone-500">Evidence</p>
+                <p className="mt-1 text-sm leading-6 text-stone-300">{selectedLevel.evidence}</p>
+              </div>
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.16em] text-stone-500">
+                  Complication
+                </p>
+                <p className="mt-1 text-sm leading-6 text-stone-300">
+                  {selectedLevel.complication}
+                </p>
+              </div>
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.16em] text-stone-500">
+                  Difficulty
+                </p>
+                <p className="mt-1 text-sm leading-6 text-stone-300">{selectedRange.challenge}</p>
+              </div>
+            </div>
+          </div>
         </div>
       ) : null}
     </div>
