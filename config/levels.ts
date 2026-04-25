@@ -14,7 +14,7 @@ export const LEVEL_CONFIGS: Record<DifficultyTier, LevelConfig> = {
     witnessConsistencyStrictness: 'medium',
     retrievalEnabled: false,
     lawyerVoice: 'ash',
-    judgeVoice: 'ballad',
+    judgeVoice: 'echo',
   },
   2: {
     level: 2,
@@ -29,7 +29,7 @@ export const LEVEL_CONFIGS: Record<DifficultyTier, LevelConfig> = {
     witnessConsistencyStrictness: 'medium',
     retrievalEnabled: false,
     lawyerVoice: 'ash',
-    judgeVoice: 'ballad',
+    judgeVoice: 'echo',
   },
   3: {
     level: 3,
@@ -44,7 +44,7 @@ export const LEVEL_CONFIGS: Record<DifficultyTier, LevelConfig> = {
     witnessConsistencyStrictness: 'high',
     retrievalEnabled: false,
     lawyerVoice: 'ash',
-    judgeVoice: 'ballad',
+    judgeVoice: 'echo',
   },
   4: {
     level: 4,
@@ -59,7 +59,7 @@ export const LEVEL_CONFIGS: Record<DifficultyTier, LevelConfig> = {
     witnessConsistencyStrictness: 'high',
     retrievalEnabled: false,
     lawyerVoice: 'ash',
-    judgeVoice: 'ballad',
+    judgeVoice: 'echo',
   },
   5: {
     level: 5,
@@ -74,7 +74,7 @@ export const LEVEL_CONFIGS: Record<DifficultyTier, LevelConfig> = {
     witnessConsistencyStrictness: 'high',
     retrievalEnabled: true,
     lawyerVoice: 'ash',
-    judgeVoice: 'ballad',
+    judgeVoice: 'echo',
   },
 }
 

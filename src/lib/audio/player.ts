@@ -8,11 +8,17 @@ export interface AudioStreamPlayer {
 
 export function createAudioStreamPlayer(): AudioStreamPlayer {
   const ctx = new AudioContext({ sampleRate: 24000 })
-  let nextStartTime = ctx.currentTime
+  // Kick off resume immediately — browsers may start AudioContext suspended
+  void ctx.resume()
+
+  let nextStartTime = 0
   let stopped = false
 
   function enqueue(base64Chunk: string) {
     if (stopped || !base64Chunk) return
+
+    // Re-trigger resume each time in case the context drifted back to suspended
+    if (ctx.state !== 'running') void ctx.resume()
 
     try {
       const binary = atob(base64Chunk)
@@ -30,7 +36,8 @@ export function createAudioStreamPlayer(): AudioStreamPlayer {
       source.buffer = buffer
       source.connect(ctx.destination)
 
-      const startAt = Math.max(ctx.currentTime + 0.01, nextStartTime)
+      // Always schedule at least 80ms ahead of now so chunks don't land in the past
+      const startAt = Math.max(ctx.currentTime + 0.08, nextStartTime)
       source.start(startAt)
       nextStartTime = startAt + buffer.duration
     } catch {
